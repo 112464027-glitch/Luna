@@ -836,6 +836,11 @@
 </div>
 
 <script>
+  window.onerror = function(msg, src, line) {
+    console.error('Luna error:', msg, 'line:', line);
+    return false;
+  };
+
   // Safe storage — works on GitHub Pages, silent fail in claude.ai
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch(e) { return null; } },
@@ -1176,7 +1181,6 @@
   }
 
   function clearAll() {
-    if (!confirm('確定要清除所有資料嗎？')) return;
     batches = []; history = []; batchCounter = 0;
     saveBatches();
     renderLog(); updateTotal();
