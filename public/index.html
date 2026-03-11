@@ -4,225 +4,165 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Luna — 婦科健康知識助理</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap');
-
   :root {
-    --bg: #fff0f5;
-    --surface: #fff5f8;
-    --surface2: #ffe8f0;
-    --border: #f4c6d8;
-    --accent: #d63384;
-    --accent-soft: #e8779a;
-    --accent-light: #ffe0ec;
-    --pink-deep: #c2185b;
-    --pink-pale: #fce4ec;
-    --pink-mid: #f48fb1;
-    --text: #2d1b26;
-    --text-mid: #6b3a52;
-    --text-muted: #b07090;
-    --radius: 16px;
-    --shadow: 0 4px 24px rgba(180,60,100,0.12);
+    --bg:#fff0f5;--surface:#fff5f8;--border:#f4c6d8;--accent:#d63384;
+    --accent-soft:#e8779a;--accent-light:#ffe0ec;--pink-deep:#c2185b;
+    --pink-pale:#fce4ec;--pink-mid:#f48fb1;--text:#2d1b26;
+    --text-mid:#6b3a52;--text-muted:#b07090;--radius:16px;
+    --shadow:0 4px 24px rgba(180,60,100,0.12);
   }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Header */
+  .header{padding:14px 22px;background:linear-gradient(135deg,#ffe4ef,#ffd6e7);border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:13px;position:sticky;top:0;z-index:100;}
+  .header-avatar{width:44px;height:44px;border-radius:50%;overflow:hidden;flex-shrink:0;box-shadow:0 3px 12px rgba(214,51,132,0.28);}
+  .header-title{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;}
+  .header-sub{font-size:11px;color:var(--text-muted);margin-top:1px;}
+  .header-badge{margin-left:auto;display:flex;align-items:center;gap:6px;background:white;border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:11px;color:var(--pink-deep);font-weight:500;}
+  .dot{width:7px;height:7px;border-radius:50%;background:#e91e8c;animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+  /* Tabs */
+  .tabs{display:flex;background:white;border-bottom:1.5px solid var(--border);padding:0 16px;gap:4px;}
+  .tab-btn{padding:10px 16px;font-size:13px;font-weight:500;color:var(--text-muted);background:none;border:none;border-bottom:2.5px solid transparent;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+  .tab-btn:hover{color:var(--accent);}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
 
-  /* ── Header ── */
-  .header {
-    padding: 14px 22px;
-    background: linear-gradient(135deg, #ffe4ef 0%, #ffd6e7 100%);
-    border-bottom: 1.5px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 13px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .header-avatar { width: 44px; height: 44px; border-radius: 50%; overflow: hidden; flex-shrink: 0; box-shadow: 0 3px 12px rgba(214,51,132,0.28); }
-  .header-title { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; color: var(--text); }
-  .header-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-  .header-badge { margin-left: auto; display: flex; align-items: center; gap: 6px; background: white; border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 11px; color: var(--pink-deep); font-weight: 500; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: #e91e8c; animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .tab-panel{display:none;flex:1;flex-direction:column;}
+  .tab-panel.active{display:flex;}
 
-  /* ── Tabs ── */
-  .tabs {
-    display: flex;
-    background: white;
-    border-bottom: 1.5px solid var(--border);
-    padding: 0 16px;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-  .tab-btn {
-    padding: 10px 16px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-muted);
-    background: none;
-    border: none;
-    border-bottom: 2.5px solid transparent;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-  }
-  .tab-btn:hover { color: var(--accent); }
-  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  /* Chat */
+  #chat-panel{height:calc(100vh - 118px);}
+  #messages{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:16px;background:linear-gradient(180deg,#fff5f8,#fff0f5);}
+  #messages::-webkit-scrollbar{width:4px;}
+  #messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  .message{display:flex;gap:9px;max-width:84%;animation:fadeUp 0.28s ease;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+  .message.user{align-self:flex-end;flex-direction:row-reverse;}
+  .message.bot{align-self:flex-start;}
+  .msg-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:4px;font-size:16px;overflow:hidden;}
+  .message.bot .msg-av{box-shadow:0 2px 8px rgba(214,51,132,0.25);}
+  .message.user .msg-av{background:var(--pink-pale);border:1px solid var(--border);}
+  .bubble-wrap{display:flex;flex-direction:column;gap:3px;}
+  .sender{font-size:10px;color:var(--text-muted);padding:0 4px;}
+  .msg-time{font-size:9px;color:var(--text-muted);opacity:0.7;margin-left:4px;}
+  .message.user .sender{text-align:right;}
+  .bubble{padding:11px 15px;font-size:14px;line-height:1.78;border-radius:var(--radius);box-shadow:0 1px 6px rgba(180,60,100,0.07);word-break:break-word;}
+  .message.bot .bubble{background:transparent;border:none;border-top-left-radius:4px;padding:0;}
+  .message.user .bubble{background:white;border:1px solid var(--border);border-top-right-radius:4px;white-space:pre-wrap;}
+  .typing{display:flex;gap:5px;padding:4px 2px;}
+  .typing span{width:7px;height:7px;border-radius:50%;background:var(--accent-soft);animation:bounce 1.2s infinite;}
+  .typing span:nth-child(2){animation-delay:0.2s;}
+  .typing span:nth-child(3){animation-delay:0.4s;}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+  .error-msg{align-self:center;font-size:12px;color:#c62828;background:#fde8e8;border:1px solid #ef9a9a;border-radius:20px;padding:6px 16px;}
+  .input-area{padding:12px 16px;border-top:1px solid var(--border);background:var(--surface);display:flex;gap:10px;align-items:flex-end;flex-shrink:0;}
+  #user-input{flex:1;background:white;border:1.5px solid var(--border);border-radius:16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:10px 15px;resize:none;outline:none;max-height:110px;line-height:1.6;transition:border-color 0.2s;}
+  #user-input:focus{border-color:var(--accent-soft);}
+  #user-input::placeholder{color:var(--text-muted);}
+  #send-btn{background:linear-gradient(135deg,var(--accent-soft),var(--accent));border:none;border-radius:14px;width:46px;height:46px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity 0.2s,transform 0.15s;box-shadow:0 3px 12px rgba(214,51,132,0.3);}
+  #send-btn:hover:not(:disabled){opacity:0.88;transform:scale(1.05);}
+  #send-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none;box-shadow:none;}
+  #send-btn svg{width:20px;height:20px;fill:white;}
+  .db-badge{font-size:11px;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;border-radius:20px;padding:4px 10px;display:none;align-items:center;gap:5px;}
+  .db-badge.show{display:flex;}
+  .lang-block{border-radius:12px;padding:11px 13px;margin-bottom:8px;}
+  .lang-block:last-child{margin-bottom:0;}
+  .zh-block{background:#fff5f8;border:1px solid #f9c6da;}
+  .id-block{background:#fff8e1;border:1px solid #ffe082;}
+  .lang-tag{font-size:11px;font-weight:600;margin-bottom:6px;}
+  .zh-block .lang-tag{color:var(--pink-deep);}
+  .id-block .lang-tag{color:#f57f17;}
+  .lang-text{font-size:13.5px;line-height:1.8;color:var(--text);white-space:pre-wrap;}
 
-  .tab-panel { display: none; flex: 1; flex-direction: column; }
-  .tab-panel.active { display: flex; }
+  /* DB Panel */
+  #db-panel{padding:20px;gap:16px;overflow-y:auto;}
+  .sync-status{font-size:11px;padding:6px 12px;border-radius:20px;text-align:center;margin-bottom:4px;}
+  .sync-ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;}
+  .sync-loading{background:#fff8e1;color:#f57f17;border:1px solid #ffe082;}
+  .sync-err{background:#fde8e8;color:#c62828;border:1px solid #ef9a9a;}
+  .db-upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;background:white;cursor:pointer;transition:all 0.2s;}
+  .db-upload-zone:hover,.db-upload-zone.drag{border-color:var(--accent);background:var(--accent-light);}
+  .db-upload-zone .upload-icon{font-size:32px;margin-bottom:8px;}
+  .db-upload-zone p{color:var(--text-muted);font-size:13px;}
+  .db-upload-zone strong{color:var(--accent);}
+  #file-input{display:none;}
+  .db-or{text-align:center;color:var(--text-muted);font-size:12px;margin:4px 0;}
+  .text-input-box{width:100%;background:white;border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 15px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);resize:vertical;min-height:80px;outline:none;transition:border-color 0.2s;}
+  .text-input-box:focus{border-color:var(--accent-soft);}
+  .btn-pink{background:linear-gradient(135deg,var(--accent-soft),var(--accent));color:white;border:none;border-radius:12px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity 0.2s;}
+  .btn-pink:hover{opacity:0.88;}
+  .btn-pink:disabled{opacity:0.5;cursor:not-allowed;}
+  .btn-outline{background:white;color:var(--accent);border:1.5px solid var(--accent);border-radius:12px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;}
+  .btn-outline:hover{background:var(--accent-light);}
+  .section-title{font-size:13px;font-weight:600;color:var(--text-mid);margin-bottom:8px;}
+  .db-list{display:flex;flex-direction:column;gap:8px;}
+  .db-item{background:white;border:1px solid var(--border);border-radius:12px;padding:12px 15px;display:flex;align-items:center;gap:10px;}
+  .db-item-icon{font-size:20px;flex-shrink:0;}
+  .db-item-name{font-size:13px;font-weight:600;color:var(--text);flex:1;}
+  .db-item-meta{font-size:11px;color:var(--text-muted);}
+  .db-item-del{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;padding:2px 6px;border-radius:8px;transition:all 0.2s;}
+  .db-item-del:hover{background:#fde8e8;color:#c62828;}
+  .db-empty{text-align:center;padding:24px;color:var(--text-muted);font-size:13px;}
 
-  /* ── CHAT TAB ── */
-  #chat-panel { flex: 1; height: calc(100vh - 120px); }
-  #messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px 22px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    background: linear-gradient(180deg, #fff5f8 0%, #fff0f5 100%);
-  }
-  #messages::-webkit-scrollbar { width: 4px; }
-  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  /* Log Panel */
+  #log-panel{padding:20px;gap:16px;overflow-y:auto;}
+  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .stat-card{background:white;border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
+  .stat-num{font-size:26px;font-weight:700;color:var(--accent);font-family:'Playfair Display',serif;}
+  .stat-label{font-size:11px;color:var(--text-muted);margin-top:3px;}
+  .log-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .log-sort-btn{background:white;border:1.5px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;color:var(--text-muted);transition:all 0.2s;}
+  .log-sort-btn.active{background:var(--accent-light);border-color:var(--accent);color:var(--accent);font-weight:600;}
+  .export-btn{margin-left:auto;}
+  .log-list{display:flex;flex-direction:column;gap:10px;}
+  .log-item{background:white;border:1px solid var(--border);border-radius:12px;padding:13px 15px;}
+  .log-item-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .log-tag{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;}
+  .tag-db{background:#e8f5e9;color:#2e7d32;}
+  .tag-nodb{background:#f3e5f5;color:#6a1b9a;}
+  .log-time{font-size:10px;color:var(--text-muted);margin-left:auto;}
+  .log-q{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;}
+  .log-a{font-size:12px;color:var(--text-muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .log-empty{text-align:center;padding:40px;color:var(--text-muted);font-size:13px;}
 
-  .message { display: flex; gap: 9px; max-width: 84%; animation: fadeUp 0.28s ease; }
-  @keyframes fadeUp { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:translateY(0)} }
-  .message.user { align-self: flex-end; flex-direction: row-reverse; }
-  .message.bot  { align-self: flex-start; }
-
-  .msg-av { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 4px; font-size: 16px; overflow: hidden; }
-  .message.bot .msg-av { box-shadow: 0 2px 8px rgba(214,51,132,0.25); }
-  .message.user .msg-av { background: var(--pink-pale); border: 1px solid var(--border); }
-
-  .bubble-wrap { display: flex; flex-direction: column; gap: 3px; }
-  .sender { font-size: 10px; color: var(--text-muted); padding: 0 4px; }
-  .msg-time { font-size: 9px; color: var(--text-muted); opacity: 0.7; margin-left: 4px; }
-  .message.user .sender { text-align: right; }
-
-  .bubble { padding: 11px 15px; font-size: 14px; line-height: 1.78; border-radius: var(--radius); box-shadow: 0 1px 6px rgba(180,60,100,0.07); word-break: break-word; }
-  .message.bot .bubble { background: #fff0f6; border: 1px solid #f9c6da; border-top-left-radius: 4px; color: var(--text); }
-  .message.user .bubble { background: white; border: 1px solid var(--border); border-top-right-radius: 4px; color: var(--text); white-space: pre-wrap; }
-
-  .typing { display: flex; gap: 5px; padding: 4px 2px; }
-  .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-soft); animation: bounce 1.2s infinite; }
-  .typing span:nth-child(2) { animation-delay: 0.2s; }
-  .typing span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
-
-  .error-msg { align-self: center; font-size: 12px; color: #c62828; background: #fde8e8; border: 1px solid #ef9a9a; border-radius: 20px; padding: 6px 16px; margin: 10px 0; }
-
-  .input-area { padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface); display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; }
-  #user-input { flex: 1; background: white; border: 1.5px solid var(--border); border-radius: 16px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 10px 15px; resize: none; outline: none; max-height: 110px; line-height: 1.6; transition: border-color 0.2s; }
-  #send-btn { background: linear-gradient(135deg, var(--accent-soft), var(--accent)); border: none; border-radius: 14px; width: 46px; height: 46px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 3px 12px rgba(214,51,132,0.3); }
-
-  .db-badge { font-size: 11px; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; border-radius: 20px; padding: 4px 10px; display: none; align-items: center; gap: 5px; }
-  .db-badge.show { display: flex; }
-
-  /* Bilingual blocks */
-  .lang-block { border-radius: 12px; padding: 11px 13px; margin-bottom: 8px; }
-  .zh-block { background: #fff5f8; border: 1px solid #f9c6da; }
-  .id-block { background: #fff8e1; border: 1px solid #ffe082; }
-  .lang-tag { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
-  .lang-text { font-size: 13.5px; line-height: 1.8; color: var(--text); white-space: pre-wrap; }
-
-  /* Quick example chips */
-  .example-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    margin-top: 12px;
-  }
-  .chip {
-    background: white;
-    border: 1.5px solid var(--border);
-    border-radius: 20px;
-    padding: 6px 13px;
-    font-size: 12px;
-    color: var(--accent);
-    cursor: pointer;
-    transition: all 0.18s;
-    font-weight: 500;
-    box-shadow: 0 1px 4px rgba(214,51,132,0.09);
-  }
-  .chip:hover { background: var(--pink-pale); border-color: var(--accent); transform: translateY(-1px); }
-
-  /* DB & LOG Styles */
-  #db-panel, #log-panel { padding: 20px; gap: 16px; overflow-y: auto; }
-  .db-upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px; text-align: center; background: white; cursor: pointer; }
-  .text-input-box { width: 100%; border: 1.5px solid var(--border); border-radius: var(--radius); padding: 12px 15px; font-size: 13px; outline: none; }
-  .btn-pink { background: linear-gradient(135deg, var(--accent-soft), var(--accent)); color: white; border: none; border-radius: 12px; padding: 9px 20px; font-weight: 600; cursor: pointer; }
-  .db-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-  .db-item { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px 15px; display: flex; align-items: center; gap: 10px; }
-  .db-item-del { margin-left: auto; border: none; background: none; cursor: pointer; color: #d63384; font-weight: bold; font-size: 16px; padding: 0 8px; }
-  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .stat-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 14px; text-align: center; }
-  .stat-num { font-size: 26px; font-weight: 700; color: var(--accent); }
-  .log-item { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px; margin-bottom: 10px; border-left: 5px solid var(--border); }
+  /* Quick chips */
+  .quick-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .chip{background:white;border:1.5px solid var(--border);border-radius:20px;padding:7px 14px;font-size:12px;color:var(--accent);cursor:pointer;transition:all 0.2s;font-family:'DM Sans',sans-serif;}
+  .chip:hover{background:var(--accent-light);border-color:var(--accent);}
+  .chip-zh{display:block;font-size:12px;color:var(--accent);font-weight:600;}
+  .chip-id{display:block;font-size:10.5px;color:var(--text-muted);margin-top:2px;}
 </style>
 </head>
 <body>
 
 <div class="header">
   <div class="header-avatar">
-    <!-- Cute girl avatar: big eyes, rosy cheeks, hair with bow -->
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="22" cy="22" r="22" fill="#FFD6E8"/>
-      <!-- Hair back -->
-      <ellipse cx="22" cy="17" rx="13" ry="13" fill="#3B1F1F"/>
-      <!-- Hair side pieces -->
-      <ellipse cx="10" cy="22" rx="4.5" ry="7" fill="#3B1F1F"/>
-      <ellipse cx="34" cy="22" rx="4.5" ry="7" fill="#3B1F1F"/>
-      <!-- Neck -->
-      <rect x="18" y="32" width="8" height="5" rx="2" fill="#FDDCB5"/>
-      <!-- Face -->
-      <ellipse cx="22" cy="24" rx="11" ry="11" fill="#FDDCB5"/>
-      <!-- Blush left -->
-      <ellipse cx="14.5" cy="26.5" rx="3" ry="1.8" fill="#F9A8C9" opacity="0.7"/>
-      <!-- Blush right -->
-      <ellipse cx="29.5" cy="26.5" rx="3" ry="1.8" fill="#F9A8C9" opacity="0.7"/>
-      <!-- Eyes white -->
-      <ellipse cx="18" cy="23" rx="3" ry="3.2" fill="white"/>
-      <ellipse cx="26" cy="23" rx="3" ry="3.2" fill="white"/>
-      <!-- Iris -->
-      <circle cx="18" cy="23.5" r="1.9" fill="#4A2F6B"/>
-      <circle cx="26" cy="23.5" r="1.9" fill="#4A2F6B"/>
-      <!-- Pupil -->
-      <circle cx="18.4" cy="23.2" r="0.85" fill="black"/>
-      <circle cx="26.4" cy="23.2" r="0.85" fill="black"/>
-      <!-- Eye shine -->
-      <circle cx="18.9" cy="22.6" r="0.5" fill="white"/>
-      <circle cx="26.9" cy="22.6" r="0.5" fill="white"/>
-      <!-- Eyelashes top left -->
-      <line x1="15.3" y1="20.4" x2="14.5" y2="19.4" stroke="#3B1F1F" stroke-width="0.7" stroke-linecap="round"/>
-      <line x1="17.5" y1="19.8" x2="17.2" y2="18.7" stroke="#3B1F1F" stroke-width="0.7" stroke-linecap="round"/>
-      <line x1="19.7" y1="20.2" x2="19.9" y2="19.1" stroke="#3B1F1F" stroke-width="0.7" stroke-linecap="round"/>
-      <!-- Eyelashes top right -->
-      <line x1="23.3" y1="20.4" x2="22.5" y2="19.4" stroke="#3B1F1F" stroke-width="0.7" stroke-linecap="round"/>
-      <line x1="25.5" y1="19.8" x2="25.2" y2="18.7" stroke="#3B1F1F" stroke-width="0.7" stroke-linecap="round"/>
-      <line x1="27.7" y1="20.2" x2="27.9" y2="19.1" stroke="#3B1F1F" stroke-width="0.7" stroke-linecap="round"/>
-      <!-- Nose (tiny) -->
-      <ellipse cx="22" cy="27" rx="1" ry="0.6" fill="#E8A882" opacity="0.7"/>
-      <!-- Smile -->
-      <path d="M19 30 Q22 32.5 25 30" stroke="#D6637A" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-      <!-- Hair bow on top right -->
-      <path d="M27 10 Q30 7 32 10 Q30 12 27 10Z" fill="#FF80B0"/>
-      <path d="M27 10 Q24 7 22 10 Q24 12 27 10Z" fill="#FF80B0"/>
-      <circle cx="27" cy="10" r="1.8" fill="#FF4D94"/>
-      <!-- Hair fringe/bangs -->
-      <path d="M11 19 Q14 11 22 10 Q30 11 33 19" fill="#3B1F1F"/>
-      <path d="M12 19 Q15 15 19 14" stroke="#3B1F1F" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+      <circle cx="22" cy="22" r="22" fill="url(#hg)"/>
+      <defs><radialGradient id="hg" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="#ffd6e8"/><stop offset="100%" stop-color="#e8779a"/></radialGradient></defs>
+      <ellipse cx="22" cy="18" rx="13" ry="14" fill="#4a2040"/>
+      <ellipse cx="22" cy="24" rx="11" ry="12" fill="#fde8d0"/>
+      <ellipse cx="22" cy="12" rx="13" ry="7" fill="#4a2040"/>
+      <ellipse cx="10" cy="22" rx="3.5" ry="6" fill="#4a2040"/>
+      <ellipse cx="34" cy="22" rx="3.5" ry="6" fill="#4a2040"/>
+      <ellipse cx="11" cy="24" rx="2.2" ry="2.8" fill="#fcd5b0"/>
+      <ellipse cx="33" cy="24" rx="2.2" ry="2.8" fill="#fcd5b0"/>
+      <ellipse cx="18" cy="23" rx="2.5" ry="2.8" fill="white"/>
+      <ellipse cx="26" cy="23" rx="2.5" ry="2.8" fill="white"/>
+      <circle cx="18.6" cy="23.4" r="1.6" fill="#3d1a2e"/>
+      <circle cx="26.6" cy="23.4" r="1.6" fill="#3d1a2e"/>
+      <circle cx="19.2" cy="22.6" r="0.6" fill="white"/>
+      <circle cx="27.2" cy="22.6" r="0.6" fill="white"/>
+      <ellipse cx="14.5" cy="26.5" rx="3" ry="1.8" fill="#f48fb1" opacity="0.45"/>
+      <ellipse cx="29.5" cy="26.5" rx="3" ry="1.8" fill="#f48fb1" opacity="0.45"/>
+      <path d="M18.5 30 Q22 33 25.5 30" stroke="#d6637a" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <circle cx="29" cy="13" r="3" fill="#ff6fa8" opacity="0.9"/>
+      <circle cx="29" cy="13" r="1.5" fill="#ffd6e8"/>
     </svg>
   </div>
   <div>
@@ -233,331 +173,306 @@
 </div>
 
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('chat')">💬 聊天</button>
-  <button class="tab-btn" onclick="switchTab('db')">🗄️ 資料庫</button>
-  <button class="tab-btn" onclick="switchTab('log')">🔬 實驗記錄</button>
+  <button class="tab-btn active" onclick="switchTab('chat',this)">💬 聊天</button>
+  <button class="tab-btn" onclick="switchTab('db',this)">🗄️ 資料庫</button>
+  <button class="tab-btn" onclick="switchTab('log',this)">🔬 實驗記錄</button>
 </div>
 
+<!-- CHAT -->
 <div id="chat-panel" class="tab-panel active">
   <div id="messages"></div>
   <div class="input-area">
     <div id="db-active-badge" class="db-badge">📂 <span id="db-badge-text">已載入資料庫</span></div>
-    <textarea id="user-input" rows="1" placeholder="詢問婦科健康問題 / Tanya Luna...🌸" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-    <button id="send-btn" onclick="sendMessage()"><svg viewBox="0 0 24 24" width="20" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+    <textarea id="user-input" rows="1" placeholder="詢問婦科健康問題 / Tanya masalah kesehatan wanita 🌸" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button id="send-btn" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
   </div>
 </div>
 
+<!-- DB -->
 <div id="db-panel" class="tab-panel">
-  <div class="db-upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+  <div id="sync-status" class="sync-status sync-loading">⏳ 正在連線 Supabase…</div>
+
+  <div class="db-upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
     <div class="upload-icon">📂</div>
-    <p><strong>點擊上傳</strong>或拖放檔案 (CSV/JSON/TXT)</p>
+    <p><strong>點擊上傳</strong>或拖放檔案到這裡</p>
+    <p style="margin-top:4px">支援 CSV、JSON、TXT</p>
   </div>
-  <input type="file" id="file-input" hidden onchange="onFileSelect(event)" />
-  <div style="text-align:center; margin:10px 0; font-size:12px; color:#aaa;">── 或輸入文字 ──</div>
-  <textarea class="text-input-box" id="text-input" placeholder="直接貼上衛教資料、月經紀錄等內容..." rows="3"></textarea>
-  <button class="btn-pink" style="margin-top:8px" onclick="addTextEntry()">＋ 新增到資料庫</button>
-  
-  <div style="margin-top:20px">
-    <div style="font-size:13px; font-weight:600; color:var(--text-mid);">📋 資料庫清單</div>
-    <div class="db-list" id="db-list"></div>
+  <input type="file" id="file-input" accept=".csv,.json,.txt" onchange="onFileSelect(event)" />
+
+  <div class="db-or">── 或輸入文字 ──</div>
+  <div>
+    <textarea class="text-input-box" id="text-input" placeholder="直接貼上資料或輸入知識內容…" rows="3"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn-pink" id="add-text-btn" onclick="addTextEntry()">＋ 新增到資料庫</button>
+    </div>
   </div>
-  
-  <button class="btn-pink" style="background:#666; margin-top:20px" onclick="clearAllDb()">🗑 清除所有資料庫內容</button>
+
+  <div>
+    <div class="section-title">📋 已上傳的資料（<span id="db-count">0</span> 筆）· 所有裝置共用</div>
+    <div class="db-list" id="db-list"><div class="db-empty">載入中…</div></div>
+  </div>
+  <div style="display:flex;gap:8px;padding-bottom:20px">
+    <button class="btn-outline" onclick="clearAllDb()">🗑 清除全部資料</button>
+  </div>
 </div>
 
+<!-- LOG -->
 <div id="log-panel" class="tab-panel">
   <div class="stats-row">
-    <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">總問答</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">總問答數</div></div>
     <div class="stat-card"><div class="stat-num" id="stat-with-db">0</div><div class="stat-label">有資料庫</div></div>
     <div class="stat-card"><div class="stat-num" id="stat-no-db">0</div><div class="stat-label">無資料庫</div></div>
   </div>
-  <div id="log-list" style="margin-top:15px"></div>
-  <button class="btn-pink" style="background:#666; margin-top:20px" onclick="clearLog()">🗑 清除所有問答記錄</button>
+  <div class="log-controls">
+    <button class="log-sort-btn active" onclick="setSort('time',this)" id="sort-time">🕐 依時間</button>
+    <button class="log-sort-btn" onclick="setSort('db',this)" id="sort-db">📂 依資料庫</button>
+    <button class="btn-outline export-btn" onclick="exportCSV()">⬇ 匯出 CSV</button>
+    <button class="btn-outline" onclick="clearLog()">🗑 清除記錄</button>
+  </div>
+  <div class="log-list" id="log-list"><div class="log-empty">載入中…</div></div>
 </div>
 
 <script>
-// ════════════════════════════════════════════════════
-// 核心狀態管理與 localStorage 存檔
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// SUPABASE INIT
+// ══════════════════════════════════════════════
+const SUPABASE_URL = 'https://qwvlyskugcrsmawmchqu.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3dmx5c2t1Z2Nyc21hd21jaHF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMDUyMDIsImV4cCI6MjA4ODc4MTIwMn0.fSHFn1_2fy3a4OxEKO7Xxh2w_sCOZhUhC8olROWqrPg';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
 let isLoading = false;
 let chatHistory = [];
 let dbEntries = [];
 let expLog = [];
+let sortMode = 'time';
 
-function persistToStorage() {
-    localStorage.setItem('luna_db_v2', JSON.stringify(dbEntries));
-    localStorage.setItem('luna_log_v2', JSON.stringify(expLog));
-}
+const LUNA_SVG = `<svg width="34" height="34" viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="22" fill="url(#mg)"/><defs><radialGradient id="mg" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="#ffd6e8"/><stop offset="100%" stop-color="#e8779a"/></radialGradient></defs><ellipse cx="22" cy="18" rx="13" ry="14" fill="#4a2040"/><ellipse cx="22" cy="24" rx="11" ry="12" fill="#fde8d0"/><ellipse cx="22" cy="12" rx="13" ry="7" fill="#4a2040"/><ellipse cx="10" cy="22" rx="3.5" ry="6" fill="#4a2040"/><ellipse cx="34" cy="22" rx="3.5" ry="6" fill="#4a2040"/><ellipse cx="11" cy="24" rx="2.2" ry="2.8" fill="#fcd5b0"/><ellipse cx="33" cy="24" rx="2.2" ry="2.8" fill="#fcd5b0"/><ellipse cx="18" cy="23" rx="2.5" ry="2.8" fill="white"/><ellipse cx="26" cy="23" rx="2.5" ry="2.8" fill="white"/><circle cx="18.6" cy="23.4" r="1.6" fill="#3d1a2e"/><circle cx="26.6" cy="23.4" r="1.6" fill="#3d1a2e"/><circle cx="19.2" cy="22.6" r="0.6" fill="white"/><circle cx="27.2" cy="22.6" r="0.6" fill="white"/><ellipse cx="14.5" cy="26.5" rx="3" ry="1.8" fill="#f48fb1" opacity="0.45"/><ellipse cx="29.5" cy="26.5" rx="3" ry="1.8" fill="#f48fb1" opacity="0.45"/><path d="M18.5 30 Q22 33 25.5 30" stroke="#d6637a" stroke-width="1.2" fill="none" stroke-linecap="round"/><circle cx="29" cy="13" r="3" fill="#ff6fa8" opacity="0.9"/><circle cx="29" cy="13" r="1.5" fill="#ffd6e8"/></svg>`;
 
-function loadFromStorage() {
-    const savedDb = localStorage.getItem('luna_db_v2');
-    const savedLog = localStorage.getItem('luna_log_v2');
-    if (savedDb) dbEntries = JSON.parse(savedDb);
-    if (savedLog) expLog = JSON.parse(savedLog);
-    renderDb();
-    updateDbBadge();
-    updateStats();
-    renderLog();
-}
-
-// ── Cute girl Luna SVG (34x34, same design as header but smaller) ──
-const LUNA_SVG = `<svg width="34" height="34" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="22" cy="22" r="22" fill="#FFD6E8"/>
-  <ellipse cx="22" cy="17" rx="13" ry="13" fill="#3B1F1F"/>
-  <ellipse cx="10" cy="22" rx="4.5" ry="7" fill="#3B1F1F"/>
-  <ellipse cx="34" cy="22" rx="4.5" ry="7" fill="#3B1F1F"/>
-  <rect x="18" y="32" width="8" height="5" rx="2" fill="#FDDCB5"/>
-  <ellipse cx="22" cy="24" rx="11" ry="11" fill="#FDDCB5"/>
-  <ellipse cx="14.5" cy="26.5" rx="3" ry="1.8" fill="#F9A8C9" opacity="0.7"/>
-  <ellipse cx="29.5" cy="26.5" rx="3" ry="1.8" fill="#F9A8C9" opacity="0.7"/>
-  <ellipse cx="18" cy="23" rx="3" ry="3.2" fill="white"/>
-  <ellipse cx="26" cy="23" rx="3" ry="3.2" fill="white"/>
-  <circle cx="18" cy="23.5" r="1.9" fill="#4A2F6B"/>
-  <circle cx="26" cy="23.5" r="1.9" fill="#4A2F6B"/>
-  <circle cx="18.4" cy="23.2" r="0.85" fill="black"/>
-  <circle cx="26.4" cy="23.2" r="0.85" fill="black"/>
-  <circle cx="18.9" cy="22.6" r="0.5" fill="white"/>
-  <circle cx="26.9" cy="22.6" r="0.5" fill="white"/>
-  <ellipse cx="22" cy="27" rx="1" ry="0.6" fill="#E8A882" opacity="0.7"/>
-  <path d="M19 30 Q22 32.5 25 30" stroke="#D6637A" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-  <path d="M27 10 Q30 7 32 10 Q30 12 27 10Z" fill="#FF80B0"/>
-  <path d="M27 10 Q24 7 22 10 Q24 12 27 10Z" fill="#FF80B0"/>
-  <circle cx="27" cy="10" r="1.8" fill="#FF4D94"/>
-  <path d="M11 19 Q14 11 22 10 Q30 11 33 19" fill="#3B1F1F"/>
-</svg>`;
-
-// ════════════════════════════════════════════════════
-// UI 功能
-// ════════════════════════════════════════════════════
-function switchTab(tab) {
+// ══════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════
+function switchTab(tab, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(tab + '-panel').classList.add('active');
-  event.currentTarget.classList.add('active');
+  btn.classList.add('active');
   if (tab === 'log') renderLog();
 }
 
-function escHtml(str) { return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>'); }
-function scrollToBottom() { const msgs = document.getElementById('messages'); msgs.scrollTop = msgs.scrollHeight; }
-function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 110) + 'px'; }
-function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+function getTime() { return new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}); }
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+function scrollToBottom() { const m=document.getElementById('messages'); m.scrollTop=m.scrollHeight; }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,110)+'px'; }
+function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
+function setSyncStatus(type, msg) {
+  const el = document.getElementById('sync-status');
+  el.className = 'sync-status sync-' + type;
+  el.textContent = msg;
+}
 
+// ══════════════════════════════════════════════
+// CHAT RENDER
+// ══════════════════════════════════════════════
 function renderBotContent(text) {
   const parts = text.split(/\n---\n|\n---$/);
   if (parts.length >= 2) {
-    return `<div class="lang-block zh-block"><div class="lang-tag">🇹🇼 繁體中文</div><div class="lang-text">${escHtml(parts[0].trim())}</div></div>
-            <div class="lang-block id-block"><div class="lang-tag">🇮🇩 Bahasa Indonesia</div><div class="lang-text">${escHtml(parts[1].trim())}</div></div>`;
+    const zh = parts[0].trim(), id = parts.slice(1).join('\n---\n').trim();
+    return `<div class="lang-block zh-block"><div class="lang-tag">🇹🇼 繁體中文</div><div class="lang-text">${escHtml(zh)}</div></div><div class="lang-block id-block"><div class="lang-tag">🇮🇩 Bahasa Indonesia</div><div class="lang-text">${escHtml(id)}</div></div>`;
   }
   return `<div class="lang-text">${escHtml(text)}</div>`;
 }
-
-// Example questions chips
-const EXAMPLE_QUESTIONS = [
-  '😣 生理痛怎麼辦？',
-  '📅 月經不規律正常嗎？',
-  '🩸 經血量太多怎麼處理？',
-  '🌡️ 白帶異常要注意什麼？',
-  '💊 避孕藥怎麼使用？',
-  '🔍 多囊性卵巢症候群是什麼？',
-  '🤰 子宮肌瘤需要治療嗎？',
-  '🧬 子宮頸癌疫苗幾歲打？',
-];
-
-function renderExampleChips() {
-  return `<div class="example-chips">${EXAMPLE_QUESTIONS.map(q =>
-    `<button class="chip" onclick="useChip(this)">${q}</button>`
-  ).join('')}</div>`;
-}
-
-function useChip(btn) {
-  document.getElementById('user-input').value = btn.textContent.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\s]+/u, '').trim();
-  sendMessage();
-}
-
-function addMessage(role, text, withChips) {
+function addMessage(role, text) {
   const msgs = document.getElementById('messages');
-  const div = document.createElement('div');
-  div.className = 'message ' + role;
-  const isBot = role === 'bot';
-  const chipsHtml = (isBot && withChips) ? renderExampleChips() : '';
-  div.innerHTML = `<div class="msg-av">${isBot ? LUNA_SVG : '👤'}</div><div class="bubble-wrap">
-    <div class="sender">${isBot ? 'Luna' : '你'}<span class="msg-time">${new Date().toLocaleTimeString()}</span></div>
-    <div class="bubble">${isBot ? renderBotContent(text) : escHtml(text)}${chipsHtml}</div></div>`;
-  msgs.appendChild(div);
-  scrollToBottom();
+  const div = document.createElement('div'); div.className='message '+role;
+  const isBot = role==='bot';
+  div.innerHTML=`<div class="msg-av">${isBot?LUNA_SVG:'👤'}</div><div class="bubble-wrap"><div class="sender">${isBot?'Luna':'你 / Kamu'}<span class="msg-time">${getTime()}</span></div><div class="bubble">${isBot?renderBotContent(text):escHtml(text)}</div></div>`;
+  msgs.appendChild(div); scrollToBottom();
+}
+function showTyping() {
+  const msgs=document.getElementById('messages'), div=document.createElement('div');
+  div.className='message bot'; div.id='typing-indicator';
+  div.innerHTML=`<div class="msg-av">${LUNA_SVG}</div><div class="bubble-wrap"><div class="sender">Luna</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div></div>`;
+  msgs.appendChild(div); scrollToBottom();
+}
+function removeTyping() { const el=document.getElementById('typing-indicator'); if(el) el.remove(); }
+function showError(msg) {
+  const msgs=document.getElementById('messages'), div=document.createElement('div');
+  div.className='error-msg'; div.textContent='⚠️ '+msg; msgs.appendChild(div); scrollToBottom();
 }
 
-// ════════════════════════════════════════════════════
-// API 連線與發送
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// SEND MESSAGE
+// ══════════════════════════════════════════════
 async function sendMessage() {
   if (isLoading) return;
   const input = document.getElementById('user-input');
-  const prompt = input.value.trim();
-  if (!prompt) return;
-
-  input.value = ''; input.style.height = 'auto';
-  isLoading = true;
+  const prompt = input.value.trim(); if (!prompt) return;
+  input.value=''; input.style.height='auto';
+  document.getElementById('send-btn').disabled=true; isLoading=true;
   addMessage('user', prompt);
-  
-  const tid = 'typing-' + Date.now();
-  const msgs = document.getElementById('messages');
-  const tdiv = document.createElement('div');
-  tdiv.id = tid; tdiv.className = 'message bot';
-  tdiv.innerHTML = `<div class="msg-av">${LUNA_SVG}</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
-  msgs.appendChild(tdiv); scrollToBottom();
-
-  const dbContext = dbEntries.map(e => `[${e.name}]: ${e.content}`).join('\n');
-
+  chatHistory.push({role:'user', text:prompt});
+  showTyping();
+  const dbContext = dbEntries.map(e=>`[${e.name}]\n${e.content}`).join('\n\n');
+  const hasDb = dbEntries.length > 0;
   try {
     const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        prompt: prompt,
-        history: chatHistory.slice(-10),
-        dbContext: dbContext 
-      })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({prompt, history:chatHistory.slice(-20), dbContext})
     });
-
-    document.getElementById(tid).remove();
-
-    if (!res.ok) throw new Error(`連線失敗 (${res.status})。請確認後端是否運作正常。`);
-
+    removeTyping();
+    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'伺服器錯誤'); }
     const data = await res.json();
-    const reply = data.reply || "抱歉，我暫時無法回答。";
+    const reply = data.reply||'（無回應）';
     addMessage('bot', reply);
-    chatHistory.push({ role: 'user', content: prompt }, { role: 'model', content: reply });
-    
-    expLog.unshift({ time: new Date().toLocaleString(), question: prompt, answer: reply, hasDb: dbEntries.length > 0 });
-    updateStats();
-    persistToStorage(); 
-
-  } catch (err) {
-    if(document.getElementById(tid)) document.getElementById(tid).remove();
-    const ediv = document.createElement('div'); ediv.className = 'error-msg';
-    ediv.innerHTML = `⚠️ 錯誤: ${err.message}`;
-    document.getElementById('messages').appendChild(ediv);
-    scrollToBottom();
-  } finally {
-    isLoading = false;
+    chatHistory.push({role:'model', text:reply});
+    // Save to Supabase
+    await sb.from('chat_log').insert({question:prompt, answer:reply, has_db:hasDb});
+    await loadLog();
+  } catch(err) {
+    removeTyping(); showError(err.message||'連線失敗'); chatHistory.pop();
   }
+  isLoading=false; document.getElementById('send-btn').disabled=false; input.focus();
 }
 
-// ════════════════════════════════════════════════════
-// 資料庫邏輯
-// ════════════════════════════════════════════════════
-function onFileSelect(e) { 
-    const f = e.target.files[0]; 
-    if(!f) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-        dbEntries.push({ id: Date.now(), name: f.name, content: ev.target.result });
-        renderDb(); updateDbBadge(); persistToStorage();
-    };
-    reader.readAsText(f);
+// ══════════════════════════════════════════════
+// DATABASE (Supabase)
+// ══════════════════════════════════════════════
+async function loadDb() {
+  setSyncStatus('loading','⏳ 同步資料庫中…');
+  const {data, error} = await sb.from('db_entries').select('*').order('created_at',{ascending:true});
+  if (error) { setSyncStatus('err','❌ 連線失敗：'+error.message); return; }
+  dbEntries = data || [];
+  renderDb();
+  updateDbBadge();
+  setSyncStatus('ok','✅ 已同步，所有裝置共用同一份資料庫');
 }
 
+function onDragOver(e){e.preventDefault();document.getElementById('drop-zone').classList.add('drag');}
+function onDragLeave(){document.getElementById('drop-zone').classList.remove('drag');}
+function onDrop(e){e.preventDefault();onDragLeave();const f=e.dataTransfer.files[0];if(f)readFile(f);}
+function onFileSelect(e){const f=e.target.files[0];if(f)readFile(f);e.target.value='';}
+function readFile(file) {
+  const reader=new FileReader();
+  reader.onload=(e)=>{ const icon=file.name.endsWith('.csv')?'📊':file.name.endsWith('.json')?'📋':'📄'; addDbEntry(file.name, e.target.result, icon); };
+  reader.readAsText(file,'UTF-8');
+}
 function addTextEntry() {
-    const val = document.getElementById('text-input').value.trim();
-    if(val) { 
-        dbEntries.push({ id: Date.now(), name: '手動輸入', content: val }); 
-        renderDb(); updateDbBadge(); persistToStorage();
-        document.getElementById('text-input').value=''; 
-    }
+  const val=document.getElementById('text-input').value.trim(); if(!val) return;
+  addDbEntry('文字輸入 '+getTime(), val, '📝');
+  document.getElementById('text-input').value='';
 }
-
-function deleteDbEntry(id) {
-    dbEntries = dbEntries.filter(e => e.id !== id);
-    renderDb(); updateDbBadge(); persistToStorage();
+async function addDbEntry(name, content, icon='📄') {
+  const btn=document.getElementById('add-text-btn'); if(btn) btn.disabled=true;
+  setSyncStatus('loading','⏳ 儲存中…');
+  const {data, error} = await sb.from('db_entries').insert({name, content, icon}).select().single();
+  if (error) { setSyncStatus('err','❌ 儲存失敗：'+error.message); if(btn) btn.disabled=false; return; }
+  dbEntries.push(data); renderDb(); updateDbBadge();
+  setSyncStatus('ok','✅ 已儲存，所有裝置共用');
+  if(btn) btn.disabled=false;
 }
-
+async function deleteDbEntry(id) {
+  const {error} = await sb.from('db_entries').delete().eq('id',id);
+  if (error) { alert('刪除失敗：'+error.message); return; }
+  dbEntries=dbEntries.filter(e=>e.id!==id); renderDb(); updateDbBadge();
+}
+async function clearAllDb() {
+  if (!dbEntries.length) return;
+  if (!confirm('確定清除所有資料庫內容？（所有裝置都會消失）')) return;
+  const {error} = await sb.from('db_entries').delete().neq('id',0);
+  if (error) { alert('清除失敗：'+error.message); return; }
+  dbEntries=[]; renderDb(); updateDbBadge();
+}
 function renderDb() {
-    const list = document.getElementById('db-list');
-    if (dbEntries.length === 0) {
-        list.innerHTML = '<p style="color:#aaa; font-size:12px; margin-top:10px;">目前尚無資料庫內容</p>';
-        return;
-    }
-    list.innerHTML = dbEntries.map((e) => `
-        <div class="db-item">
-            <span>📄 ${e.name} (${e.content.length}字)</span>
-            <button class="db-item-del" onclick="deleteDbEntry(${e.id})">✕</button>
-        </div>`).join('');
+  document.getElementById('db-count').textContent=dbEntries.length;
+  const list=document.getElementById('db-list');
+  if (!dbEntries.length) { list.innerHTML='<div class="db-empty">尚無資料，上傳檔案或輸入文字後所有裝置都能看到</div>'; return; }
+  list.innerHTML=dbEntries.map(e=>`<div class="db-item"><div class="db-item-icon">${e.icon||'📄'}</div><div><div class="db-item-name">${escHtml(e.name)}</div><div class="db-item-meta">${(e.content||'').length.toLocaleString()} 字元</div></div><button class="db-item-del" onclick="deleteDbEntry(${e.id})">✕</button></div>`).join('');
 }
-
 function updateDbBadge() {
-    const b = document.getElementById('db-active-badge');
-    b.style.display = dbEntries.length > 0 ? 'flex' : 'none';
-    document.getElementById('db-badge-text').textContent = `已載入 ${dbEntries.length} 筆資料`;
+  const badge=document.getElementById('db-active-badge'), text=document.getElementById('db-badge-text');
+  if (dbEntries.length) { badge.classList.add('show'); text.textContent=`已載入 ${dbEntries.length} 筆資料`; }
+  else badge.classList.remove('show');
 }
 
-function clearAllDb() {
-    if(confirm('確定清除所有資料庫內容？這會刪除瀏覽器的存檔，無法復原。')) {
-        dbEntries = []; renderDb(); updateDbBadge(); persistToStorage();
-    }
+// ══════════════════════════════════════════════
+// LOG (Supabase)
+// ══════════════════════════════════════════════
+async function loadLog() {
+  const {data, error} = await sb.from('chat_log').select('*').order('created_at',{ascending:false}).limit(200);
+  if (error) return;
+  expLog = (data||[]).map(r=>({id:r.id, time:new Date(r.created_at).toLocaleString('zh-TW'), question:r.question, answer:r.answer, hasDb:r.has_db}));
+  updateStats(); renderLog();
 }
-
-// ════════════════════════════════════════════════════
-// 實驗記錄邏輯
-// ════════════════════════════════════════════════════
 function updateStats() {
-    document.getElementById('stat-total').textContent = expLog.length;
-    document.getElementById('stat-with-db').textContent = expLog.filter(l=>l.hasDb).length;
-    document.getElementById('stat-no-db').textContent = expLog.filter(l=>!l.hasDb).length;
+  document.getElementById('stat-total').textContent=expLog.length;
+  document.getElementById('stat-with-db').textContent=expLog.filter(l=>l.hasDb).length;
+  document.getElementById('stat-no-db').textContent=expLog.filter(l=>!l.hasDb).length;
 }
-
+function setSort(mode,btn) {
+  sortMode=mode;
+  document.querySelectorAll('.log-sort-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderLog();
+}
 function renderLog() {
-    const logList = document.getElementById('log-list');
-    if (expLog.length === 0) {
-        logList.innerHTML = '<p style="color:#aaa; font-size:12px;">尚無問答記錄，開始對話後會自動顯示。</p>';
-        return;
-    }
-    logList.innerHTML = expLog.map(l => `
-        <div class="log-item">
-            <small style="color:#999">${l.time} | ${l.hasDb?'📂 資料庫輔助模式':'💬 纯聊天模式'}</small>
-            <div style="font-weight:bold; margin-top:5px;">Q: ${escHtml(l.question)}</div>
-            <div style="font-size:12px; color:#555; margin-top:4px;">A: ${escHtml(l.answer)}</div>
-        </div>`).join('');
+  const list=document.getElementById('log-list');
+  if (!expLog.length) { list.innerHTML='<div class="log-empty">尚無記錄，開始聊天後會自動記錄 🌸</div>'; return; }
+  let logs=[...expLog];
+  if (sortMode==='db') logs.sort((a,b)=>b.hasDb-a.hasDb);
+  list.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-item-header"><span class="log-tag ${l.hasDb?'tag-db':'tag-nodb'}">${l.hasDb?'📂 有資料庫':'💬 無資料庫'}</span><span class="log-time">${l.time}</span></div><div class="log-q">Q: ${escHtml(l.question)}</div><div class="log-a">${escHtml(l.answer.replace(/\n---\n/g,' | '))}</div></div>`).join('');
+}
+function exportCSV() {
+  if (!expLog.length) return alert('尚無記錄可匯出');
+  const rows=[['時間','問題','回答','是否有資料庫']];
+  expLog.forEach(l=>rows.push([l.time,l.question.replace(/"/g,'""'),l.answer.replace(/"/g,'""'),l.hasDb?'是':'否']));
+  const csv=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='luna-log-'+Date.now()+'.csv'; a.click();
+}
+async function clearLog() {
+  if (!expLog.length) return;
+  if (!confirm('確定清除所有實驗記錄？（所有裝置都會消失）')) return;
+  await sb.from('chat_log').delete().neq('id',0);
+  expLog=[]; updateStats(); renderLog();
 }
 
-function clearLog() {
-    if(confirm('確定清除所有歷史問答記錄？')) {
-        expLog = []; updateStats(); renderLog(); persistToStorage();
-    }
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+
+function sendChip(btn, text) {
+  document.getElementById('quick-chips')?.remove();
+  document.getElementById('user-input').value = text;
+  sendMessage();
 }
 
-// ════════════════════════════════════════════════════
-// 初始化
-// ════════════════════════════════════════════════════
-window.onload = () => {
-    loadFromStorage();
-    if (chatHistory.length === 0) {
-        const greetText = `嗨！我是 Luna 🌸 你的專屬婦科健康知識助理！
-
-我可以幫你解答各種婦科相關問題，例如：
-• 月經異常、生理痛、月經週期計算
-• 白帶、陰道感染、私密處保養
-• 避孕方式、緊急避孕藥使用
-• 子宮肌瘤、多囊性卵巢、子宮內膜異位
-• 子宮頸癌疫苗、婦科定期檢查
-• 更年期症狀與保健
-
-你可以直接點選下方範例，或自由發問 💕
----
-Halo! Saya Luna 🌸 Asisten pengetahuan kesehatan ginekologi kamu!
-
-Saya bisa membantu menjawab berbagai pertanyaan seputar kesehatan wanita, seperti:
-• Menstruasi tidak teratur, nyeri haid, siklus menstruasi
-• Keputihan, infeksi vagina, perawatan area intim
-• Kontrasepsi, pil darurat
-• Miom, PCOS, endometriosis
-• Vaksin HPV, pemeriksaan ginekologi rutin
-• Gejala menopause & perawatannya
-
-Klik contoh di bawah atau tanya bebas ya 💕`;
-        addMessage('bot', greetText, true);
-    }
-};
+(async function init() {
+  const welcome='嗨！我是 Luna，你的婦科健康知識助理 🌸\n我可以用中文及印尼文解答你的婦科相關問題。\n\n⚠️ 免責聲明：本服務僅供衛教參考，不構成醫療診斷。如有身體不適，請務必就醫。\n---\nHalo! Saya Luna, asisten kesehatan wanita Anda 🌸\nSaya bisa menjawab dalam Bahasa Mandarin & Indonesia.\n\n⚠️ Penafian: Informasi ini hanya bersifat edukatif, bukan pengganti saran medis. Jika ada keluhan, segera ke dokter.';
+  addMessage('bot', welcome);
+  // Show quick chips
+  const chips = [
+    { zh: '月經不規律怎麼辦？', id: 'Apa penyebab menstruasi tidak teratur?' },
+    { zh: '白帶異常代表什麼？', id: 'Apa arti keputihan yang tidak normal?' },
+    { zh: 'PCOS 是什麼？', id: 'Apa itu PCOS?' },
+    { zh: '子宮頸抹片多久做一次？', id: 'Seberapa sering harus Pap smear?' },
+    { zh: '更年期有哪些症狀？', id: 'Apa saja gejala menopause?' },
+    { zh: '痛經如何緩解？', id: 'Bagaimana cara mengurangi nyeri haid?' },
+  ];
+  const msgs = document.getElementById('messages');
+  const chipsDiv = document.createElement('div');
+  chipsDiv.className = 'quick-chips';
+  chipsDiv.id = 'quick-chips';
+  chipsDiv.innerHTML = chips.map(c => `<button class="chip" onclick="sendChip(this,'${c.id}')"><span class='chip-zh'>${c.zh}</span><span class='chip-id'>${c.id}</span></button>`).join('');
+  msgs.appendChild(chipsDiv);
+  await Promise.all([loadDb(), loadLog()]);
+})();
 </script>
 </body>
 </html>
