@@ -279,6 +279,121 @@ function setSyncStatus(type, msg) {
 }
 
 // ══════════════════════════════════════════════
+// LOCAL RAG RETRIEVAL
+// 目的：不要把整個資料庫全部塞給模型，而是先挑出與問題最相關的片段。
+// 這讓 20 / 60 / 100 筆資料庫條件在實驗中真的產生差異。
+// ══════════════════════════════════════════════
+function normalizeText(s) {
+  return (s || '')
+    .toLowerCase()
+    .replace(/[，。！？、；：,.!?;:()\[\]{}"'`~]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenize(s) {
+  const text = normalizeText(s);
+  const latin = text.match(/[a-zA-Z][a-zA-Z0-9-]{1,}/g) || [];
+  const zh = (text.match(/[\u4e00-\u9fff]{2,}/g) || []).flatMap(seg => {
+    const grams = [];
+    for (let i = 0; i < seg.length - 1; i++) grams.push(seg.slice(i, i + 2));
+    return grams;
+  });
+  return [...latin, ...zh].filter(t => !['yang','dan','atau','saya','kamu','ini','itu','apa','bagaimana','untuk','dengan','the','and'].includes(t));
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i + 1];
+    if (ch === '"' && inQuotes && next === '"') { cell += '"'; i++; continue; }
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (ch === ',' && !inQuotes) { row.push(cell); cell = ''; continue; }
+    if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      if (ch === '\r' && next === '\n') i++;
+      row.push(cell); cell = '';
+      if (row.some(v => v.trim() !== '')) rows.push(row);
+      row = [];
+      continue;
+    }
+    cell += ch;
+  }
+  row.push(cell);
+  if (row.some(v => v.trim() !== '')) rows.push(row);
+  if (rows.length < 2) return [];
+  const headers = rows[0].map(h => h.trim());
+  return rows.slice(1).map(r => Object.fromEntries(headers.map((h, i) => [h, (r[i] || '').trim()])));
+}
+
+function normalizeImportedRows(fileName, text) {
+  let rows = [];
+  if (/\.json$/i.test(fileName)) {
+    const parsed = JSON.parse(text);
+    rows = Array.isArray(parsed) ? parsed : (parsed.chunks || parsed.data || []);
+  } else if (/\.csv$/i.test(fileName)) {
+    rows = parseCsv(text);
+  }
+
+  if (!rows.length) {
+    return [{ name: fileName, content: text, icon: '📄' }];
+  }
+
+  return rows.map((r, i) => {
+    const chunkId = r.chunk_id || r.record_id || r.id || `${fileName.replace(/\W+/g, '_')}-${i + 1}`;
+    const title = r.source_title || r['來源標題'] || r['標題'] || r.title || r.name || '婦科知識片段';
+    const type = r.chunk_type || r['片段類型'] || r.rag_condition || '';
+    const retrievalText = r.retrieval_text || r['檢索文字'] || r['中文內容'] || r['印尼文內容'] || r.content || '';
+    const zh = r.answer_text_zh || r['中文內容'] || r['中文摘要'] || '';
+    const id = r.answer_text_id || r['印尼文內容'] || r['自然印尼文摘要'] || '';
+    const url = r.source_url || r['來源網址'] || '';
+    const red = r.red_flags_id || r.red_flags_zh || r['紅旗警訊'] || '';
+    const content = [
+      `chunk_id: ${chunkId}`,
+      `title: ${title}`,
+      type ? `type: ${type}` : '',
+      retrievalText ? `retrieval_text: ${retrievalText}` : '',
+      zh ? `answer_zh: ${zh}` : '',
+      id ? `answer_id: ${id}` : '',
+      red ? `red_flags: ${red}` : '',
+      url ? `source_url: ${url}` : ''
+    ].filter(Boolean).join('\n');
+    return { name: `${chunkId}｜${title}`, content, icon: '🧩' };
+  });
+}
+
+function scoreEntry(promptText, promptTokens, entry) {
+  const text = `${entry.name || ''}\n${entry.content || ''}`;
+  const entryTokens = new Set(tokenize(text));
+  let score = 0;
+  for (const tok of promptTokens) {
+    if (entryTokens.has(tok)) score += tok.length >= 5 ? 3 : 1;
+    if ((entry.content || '').toLowerCase().includes(tok)) score += 0.5;
+  }
+  const redWords = ['darah','perdarahan','pingsan','demam','hamil','nyeri','sakit','gatal','bau','keputihan','出血','暈','發燒','懷孕','劇痛','搔癢','異味'];
+  if (redWords.some(w => normalizeText(promptText).includes(w)) && /red_flags|tanda bahaya|立即就醫|警訊/i.test(entry.content || '')) score += 4;
+  return score;
+}
+
+function retrieveRelevantDbEntries(prompt, topK = 5) {
+  if (!dbEntries.length) return [];
+  const promptTokens = tokenize(prompt);
+  const ranked = dbEntries
+    .map(e => ({ ...e, _score: scoreEntry(prompt, promptTokens, e) }))
+    .filter(e => e._score > 0)
+    .sort((a, b) => b._score - a._score)
+    .slice(0, topK);
+  return ranked.length ? ranked : dbEntries.slice(0, Math.min(topK, dbEntries.length)).map(e => ({ ...e, _score: 0 }));
+}
+
+function buildRetrievedDbContext(prompt) {
+  const hits = retrieveRelevantDbEntries(prompt, 5);
+  const context = hits.map((e, i) => `【RAG-${i + 1}｜score=${e._score}】\n[${e.name}]\n${e.content}`).join('\n\n');
+  const sources = hits.map(e => e.name).join(' ; ');
+  return { context, hits, sources };
+}
+
+// ══════════════════════════════════════════════
 // CHAT RENDER
 // ══════════════════════════════════════════════
 function renderBotContent(text) {
@@ -320,12 +435,13 @@ async function sendMessage() {
   addMessage('user', prompt);
   chatHistory.push({role:'user', text:prompt});
   showTyping();
-  const dbContext = dbEntries.map(e=>`[${e.name}]\n${e.content}`).join('\n\n');
-  const hasDb = dbEntries.length > 0;
+  const rag = buildRetrievedDbContext(prompt);
+  const dbContext = rag.context;
+  const hasDb = rag.hits.length > 0;
   try {
     const res = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({prompt, history:chatHistory.slice(-20), dbContext})
+      body: JSON.stringify({prompt, history:chatHistory.slice(-12), dbContext, retrievedSources: rag.sources})
     });
     removeTyping();
     if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'伺服器錯誤'); }
@@ -361,7 +477,14 @@ function onDrop(e){e.preventDefault();onDragLeave();const f=e.dataTransfer.files
 function onFileSelect(e){const f=e.target.files[0];if(f)readFile(f);e.target.value='';}
 function readFile(file) {
   const reader=new FileReader();
-  reader.onload=(e)=>{ const icon=file.name.endsWith('.csv')?'📊':file.name.endsWith('.json')?'📋':'📄'; addDbEntry(file.name, e.target.result, icon); };
+  reader.onload=async (e)=>{
+    try {
+      const entries = normalizeImportedRows(file.name, e.target.result);
+      await addManyDbEntries(entries);
+    } catch (err) {
+      alert('檔案解析失敗：' + err.message);
+    }
+  };
   reader.readAsText(file,'UTF-8');
 }
 function addTextEntry() {
@@ -377,6 +500,16 @@ async function addDbEntry(name, content, icon='📄') {
   dbEntries.push(data); renderDb(); updateDbBadge();
   setSyncStatus('ok','✅ 已儲存，所有裝置共用');
   if(btn) btn.disabled=false;
+}
+async function addManyDbEntries(entries) {
+  if (!entries.length) return;
+  setSyncStatus('loading',`⏳ 正在匯入 ${entries.length} 筆知識片段…`);
+  const payload = entries.map(e => ({ name: e.name, content: e.content, icon: e.icon || '🧩' }));
+  const {data, error} = await sb.from('db_entries').insert(payload).select();
+  if (error) { setSyncStatus('err','❌ 匯入失敗：'+error.message); return; }
+  dbEntries.push(...(data || []));
+  renderDb(); updateDbBadge();
+  setSyncStatus('ok',`✅ 已匯入 ${entries.length} 筆；聊天時會自動檢索最相關 top 5 片段`);
 }
 async function deleteDbEntry(id) {
   const {error} = await sb.from('db_entries').delete().eq('id',id);
@@ -454,7 +587,7 @@ function sendChip(btn, text) {
 }
 
 (async function init() {
-  const welcome='嗨～我是 Luna 💙\n我當年也是一個人來台灣的——看不懂健保卡、站在診所門口不敢進去、生病了也不知道要找誰說。\n現在我在這裡，就是不想讓妹妹們走我當年的冤枉路。\n有什麼想聊的都可以說——身體不舒服、不知道怎麼看醫生，或只是想找人說說話，Luna 都在 😊\n我不是醫生喔——但如果有需要，我會陪你找到對的人。\n---\nHai sayang, Luna di sini 💙\nMbak dulu juga sendirian di Taiwan — bingung, tidak tahu harus tanya siapa, takut salah ngomong di dokter.\nSekarang Mbak di sini supaya kamu tidak perlu sendirian seperti itu.\nMau cerita apa? Soal kesehatan, soal ke dokter, atau apapun — Mbak dengerin. 😊\nMbak bukan dokter ya — kalau ada yang serius, Mbak tetap akan temani kamu cari dokter yang tepat.';
+  const welcome='嗨，我是 Luna 🌸\n我可以陪你整理婦科健康問題、看診前要說的重點，以及什麼情況需要儘快就醫。你可以用中文或印尼文跟我說。\n\n⚠️ 免責聲明：我不是醫師，不能診斷或開藥；若有嚴重疼痛、大量出血、發燒、暈厥、懷孕合併出血或症狀快速惡化，請儘快就醫或急診。\n---\nHai sayang, aku Luna 🌸\nKamu boleh cerita pelan-pelan. Luna bisa bantu rapikan keluhan, siapkan pertanyaan sebelum ke dokter, dan ingatkan kapan harus segera periksa. Pakai Bahasa Indonesia juga boleh, santai saja ya.\n\n⚠️ Luna bukan dokter, jadi tidak bisa memberi diagnosis atau obat. Kalau nyeri berat, perdarahan banyak, demam, pingsan, sedang hamil lalu keluar darah, atau gejala cepat memburuk, sebaiknya segera ke dokter atau UGD.';
   addMessage('bot', welcome);
   // Show quick chips
   const chips = [
