@@ -401,9 +401,12 @@ function scoreEntry(promptText, promptTokens, entry) {
 function getEntryStage(entry) {
   const text = `${entry.name || ''}\n${entry.content || ''}`.toLowerCase();
   if (/plain_id|自然印尼語回答線索/.test(text)) return '120-extra';
-  if (/baseline_doc|rag_condition:\s*20-doc|20-doc|整篇摘要/.test(text)) return '20';
-  if (/concept|symptom|red_flag|rag_condition:\s*60-chunk|60-chunk|核心概念|症狀辨識|紅旗警訊/.test(text)) return '60';
-  if (/prep|rag_condition:\s*100-chunk|100-chunk|就醫準備/.test(text)) return '100';
+  if (/rag_condition:\s*20-doc/.test(text)) return '20';
+  if (/rag_condition:\s*60-chunk/.test(text)) return '60';
+  if (/rag_condition:\s*100-chunk/.test(text)) return '100';
+  if (/baseline_doc|20-doc|整篇摘要/.test(text)) return '20';
+  if (/prep|100-chunk|就醫準備/.test(text)) return '100';
+  if (/concept|symptom|red_flag|60-chunk|核心概念|症狀辨識|紅旗警訊/.test(text)) return '60';
   return 'unknown';
 }
 
