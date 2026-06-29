@@ -443,7 +443,8 @@ function retrieveRelevantDbEntries(prompt, topK = 5) {
 }
 
 function buildRetrievedDbContext(prompt) {
-  const hits = retrieveRelevantDbEntries(prompt, 5);
+  const topKByCondition = { none: 0, '20': 2, '60': 4, '100': 7, '300': 12 };
+  const hits = retrieveRelevantDbEntries(prompt, topKByCondition[ragCondition] || 5);
   const context = hits.map((e, i) => `【${getConditionLabel()}｜RAG-${i + 1}｜score=${e._score}】\n[${e.name}]\n${e.content}`).join('\n\n');
   const sources = hits.map(e => e.name).join(' ; ');
   return { context, hits, sources, condition: ragCondition, conditionLabel: getConditionLabel() };

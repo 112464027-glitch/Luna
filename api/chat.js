@@ -1,4 +1,4 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+﻿const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -9,6 +9,18 @@ function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition =
   const conditionSection = dbContext
     ? `\n\n【本次 RAG 實驗條件】${ragCondition}。你只能根據本次提供的片段作答，不可引用未提供的資料庫內容。`
     : `\n\n【本次 RAG 實驗條件】無資料庫 baseline。這一輪沒有提供任何資料庫片段。你可以用一般健康教育常識回答，但不可聲稱「根據資料庫」、不可列 chunk_id、不可列「本次使用來源」為任何資料庫片段。結尾請寫：「本次使用來源：無資料庫 baseline」。`;
+  const depthSection = `
+
+【RAG 詳略層級規則：必須讓資料越多，回答越詳細】
+- 無資料庫 baseline：最簡短。只給一般衛教方向、1 個安全提醒、1 個建議下一步；不要列 chunk_id。
+- 20 筆資料庫：簡短。使用 1–2 個來源片段，只回答主題方向與最重要警訊。
+- 60 筆資料庫：中等。使用 2–4 個來源片段，加入症狀辨識與紅旗警訊，但不要展開太多就醫細節。
+- 100 筆資料庫：詳細。使用 4–7 個來源片段，加入就醫準備、可記錄資訊、可問醫師的問題。
+- 300 筆資料庫：最詳細。使用 6–12 個來源片段，必須加入：口語症狀理解、症狀組合、錯誤行為提醒、台灣就醫流程、可問醫師問題、來源限制。
+
+若本次條件是 300 筆，回答不可和 20/60 一樣短；必須明顯更完整。
+若本次條件是 20 筆，回答不可展開成 300 筆那麼詳細。
+`.trim();
 
   return `你是一位名叫 Luna 的婦科健康知識與就醫準備助理 🌸。
 【本版本為實驗 B：社交性語氣 Social Tone】
@@ -70,8 +82,10 @@ function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition =
 - 每次最多問一個澄清問題。
 - 不要叫使用者自行買抗生素、荷爾蒙藥或不明藥物。
 - 若問題涉及診斷或用藥，務必提醒使用者就醫。
-- 回答盡量精簡，但紅旗警訊與下一步不能省略。
-${dbSection}${conditionSection}`.trim();
+- 回答詳略必須依照 RAG 條件調整；無資料庫與20筆要簡短，100與300筆要明顯更完整，但紅旗警訊與下一步都不能省略。
+${dbSection}${conditionSection}
+
+${depthSection}`.trim();
 }
 
 function isBilingualReply(text) {
@@ -98,6 +112,7 @@ Aturan mutlak:
 5. Jangan menambah diagnosis atau obat baru.
 6. Jika jawaban awal hanya Mandarin, terjemahkan seluruh isi ke Bahasa Indonesia dengan gaya hangat.
 7. Keluarkan hanya jawaban final, tanpa komentar tambahan.
+8. Pertahankan tingkat detail sesuai kondisi RAG dalam jawaban awal; jangan membuat jawaban pendek jika kondisi 300.
 
 Jawaban awal:
 ${text}
