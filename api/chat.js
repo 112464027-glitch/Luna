@@ -71,6 +71,40 @@ function buildSystemInstruction(dbContext, retrievedSources = "") {
 ${dbSection}`.trim();
 }
 
+function isBilingualReply(text) {
+  if (!text || typeof text !== "string") return false;
+  const parts = text.split(/\n---\n|\r?\n---\r?\n|---/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length < 2) return false;
+  const zh = parts[0];
+  const id = parts.slice(1).join("\n").trim();
+  const hasIndonesianWords = /\b(aku|kamu|dokter|haid|nyeri|perdarahan|keputihan|segera|periksa|bukan|diagnosis|obat|gejala|rumah sakit|klinik|sumber|sayang|mbak)\b/i.test(id);
+  return zh.length >= 20 && id.length >= 40 && hasIndonesianWords;
+}
+
+async function ensureBilingualReply(text, model) {
+  if (isBilingualReply(text)) return text;
+
+  const repairPrompt = `
+Tugas kamu: perbaiki format jawaban berikut agar WAJIB menjadi dua bahasa.
+
+Aturan mutlak:
+1. Bagian pertama: Bahasa Mandarin Tradisional lengkap.
+2. Baris pemisah tunggal: ---
+3. Bagian kedua: Bahasa Indonesia lengkap, natural, hangat, seperti Mbak Indonesia.
+4. Jangan menghapus peringatan medis, sumber, atau chunk_id.
+5. Jangan menambah diagnosis atau obat baru.
+6. Jika jawaban awal hanya Mandarin, terjemahkan seluruh isi ke Bahasa Indonesia dengan gaya hangat.
+7. Keluarkan hanya jawaban final, tanpa komentar tambahan.
+
+Jawaban awal:
+${text}
+`.trim();
+
+  const repaired = await model.generateContent(repairPrompt);
+  const repairedText = repaired.response.text();
+  return isBilingualReply(repairedText) ? repairedText : `${text.trim()}\n---\nMaaf sayang, format Bahasa Indonesia belum berhasil dibuat. Coba kirim ulang pertanyaannya ya. Luna bukan dokter dan tidak bisa memberi diagnosis atau obat.`;
+}
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
@@ -104,7 +138,7 @@ module.exports = async (req, res) => {
     });
 
     const result = await chat.sendMessage(prompt.trim());
-    const text = result.response.text();
+    const text = await ensureBilingualReply(result.response.text(), model);
 
     return res.status(200).json({ reply: text });
   } catch (err) {
