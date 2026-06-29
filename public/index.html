@@ -189,6 +189,7 @@
       <option value="20">20 筆</option>
       <option value="60">60 筆</option>
       <option value="100">100 筆</option>
+      <option value="300">300 筆</option>
     </select>
     <div id="db-active-badge" class="db-badge">📂 <span id="db-badge-text">已載入資料庫</span></div>
     <textarea id="user-input" rows="1" placeholder="詢問婦科健康問題 / Tanya masalah kesehatan wanita 🌸" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
@@ -297,7 +298,8 @@ function getConditionLabel() {
     none: '無資料庫',
     20: '20 筆資料庫',
     60: '60 筆資料庫',
-    100: '100 筆資料庫'
+    100: '100 筆資料庫',
+    300: '300 筆資料庫'
   }[ragCondition] || '無資料庫';
 }
 
@@ -404,6 +406,7 @@ function getEntryStage(entry) {
   if (/rag_condition:\s*20-doc/.test(text)) return '20';
   if (/rag_condition:\s*60-chunk/.test(text)) return '60';
   if (/rag_condition:\s*100-chunk/.test(text)) return '100';
+  if (/rag_condition:\s*300-depth/.test(text)) return '300';
   if (/baseline_doc|20-doc|整篇摘要/.test(text)) return '20';
   if (/prep|100-chunk|就醫準備/.test(text)) return '100';
   if (/concept|symptom|red_flag|60-chunk|核心概念|症狀辨識|紅旗警訊/.test(text)) return '60';
@@ -412,12 +415,13 @@ function getEntryStage(entry) {
 
 function getCandidateDbEntries() {
   if (!dbEntries.length || ragCondition === 'none') return [];
-  const maxByCondition = { '20': 20, '60': 60, '100': 100 };
+  const maxByCondition = { '20': 20, '60': 60, '100': 100, '300': 300 };
   let candidates = dbEntries.filter(e => {
     const stage = getEntryStage(e);
     if (ragCondition === '20') return stage === '20';
     if (ragCondition === '60') return stage === '60';
     if (ragCondition === '100') return stage !== '120-extra';
+    if (ragCondition === '300') return ['20','60','100','300'].includes(stage);
     return false;
   });
   if (!candidates.length) {
