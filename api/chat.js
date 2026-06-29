@@ -2,10 +2,13 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-function buildSystemInstruction(dbContext, retrievedSources = "") {
+function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition = "無資料庫") {
   const dbSection = dbContext
     ? `\n\n【本次檢索到的婦科知識片段】\n以下不是完整資料庫，而是系統依使用者問題挑出的 top-k 片段。你必須優先根據這些片段回答；若片段不足，請明確說資料不足，不要假裝知道。\n\n${dbContext}\n\n【本次命中來源】\n${retrievedSources || "未提供"}\n`
     : "";
+  const conditionSection = dbContext
+    ? `\n\n【本次 RAG 實驗條件】${ragCondition}。你只能根據本次提供的片段作答，不可引用未提供的資料庫內容。`
+    : `\n\n【本次 RAG 實驗條件】無資料庫 baseline。這一輪沒有提供任何資料庫片段。你可以用一般健康教育常識回答，但不可聲稱「根據資料庫」、不可列 chunk_id、不可列「本次使用來源」為任何資料庫片段。結尾請寫：「本次使用來源：無資料庫 baseline」。`;
 
   return `你是一位名叫 Luna 的婦科健康知識與就醫準備助理 🌸。
 【本版本為實驗 B：社交性語氣 Social Tone】
@@ -68,7 +71,7 @@ function buildSystemInstruction(dbContext, retrievedSources = "") {
 - 不要叫使用者自行買抗生素、荷爾蒙藥或不明藥物。
 - 若問題涉及診斷或用藥，務必提醒使用者就醫。
 - 回答盡量精簡，但紅旗警訊與下一步不能省略。
-${dbSection}`.trim();
+${dbSection}${conditionSection}`.trim();
 }
 
 function isBilingualReply(text) {
@@ -114,7 +117,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: "伺服器設定錯誤：缺少 API 金鑰" });
   }
 
-  const { prompt, history = [], dbContext = "", retrievedSources = "" } = req.body;
+  const { prompt, history = [], dbContext = "", retrievedSources = "", ragCondition = "無資料庫" } = req.body;
 
   if (!prompt || typeof prompt !== "string" || prompt.trim() === "") {
     return res.status(400).json({ error: "請提供有效的 prompt" });
@@ -123,7 +126,7 @@ module.exports = async (req, res) => {
   try {
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
-      systemInstruction: buildSystemInstruction(dbContext, retrievedSources),
+      systemInstruction: buildSystemInstruction(dbContext, retrievedSources, ragCondition),
     });
 
     const chat = model.startChat({
