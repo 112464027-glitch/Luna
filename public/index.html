@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Luna ??憍衣??亙熒?亥??拍?</title>
+<title>Luna — 婦科健康知識助理</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap');
@@ -169,30 +169,30 @@
   </div>
   <div>
     <div class="header-title">Luna</div>
-    <div class="header-sub">憍衣??亙熒?亥??拍? 繚 銝剜? & Bahasa Indonesia ?</div>
+    <div class="header-sub">婦科健康知識助理 · 中文 & Bahasa Indonesia 🌸</div>
   </div>
-  <div class="header-badge"><div class="dot"></div><span>蝺?銝?/span></div>
+  <div class="header-badge"><div class="dot"></div><span>線上中</span></div>
 </div>
 
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('chat',this)">? ?予</button>
-  <button class="tab-btn" onclick="switchTab('db',this)">??儭?鞈?摨?/button>
-  <button class="tab-btn" onclick="switchTab('log',this)">? 撖阡?閮?</button>
+  <button class="tab-btn active" onclick="switchTab('chat',this)">💬 聊天</button>
+  <button class="tab-btn" onclick="switchTab('db',this)">🗄️ 資料庫</button>
+  <button class="tab-btn" onclick="switchTab('log',this)">🔬 實驗記錄</button>
 </div>
 
 <!-- CHAT -->
 <div id="chat-panel" class="tab-panel active">
   <div id="messages"></div>
   <div class="input-area">
-    <select id="rag-condition" class="rag-select" onchange="setRagCondition(this.value)" title="?豢??祆活 RAG 撖阡?璇辣">
-      <option value="none">?∟??澈</option>
-      <option value="20">20 蝑?/option>
-      <option value="60">60 蝑?/option>
-      <option value="100">100 蝑?/option>
-      <option value="300">300 蝑?/option>
+    <select id="rag-condition" class="rag-select" onchange="setRagCondition(this.value)" title="選擇本次 RAG 實驗條件">
+      <option value="none">無資料庫</option>
+      <option value="20">20 筆</option>
+      <option value="60">60 筆</option>
+      <option value="100">100 筆</option>
+      <option value="300">300 筆</option>
     </select>
-    <div id="db-active-badge" class="db-badge">?? <span id="db-badge-text">撌脰??亥??澈</span></div>
-    <textarea id="user-input" rows="1" placeholder="閰Ｗ?憍衣??亙熒?? / Tanya masalah kesehatan wanita ?" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <div id="db-active-badge" class="db-badge">📂 <span id="db-badge-text">已載入資料庫</span></div>
+    <textarea id="user-input" rows="1" placeholder="詢問婦科健康問題 / Tanya masalah kesehatan wanita 🌸" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
     <button id="send-btn" onclick="sendMessage()">
       <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
     </button>
@@ -201,59 +201,59 @@
 
 <!-- DB -->
 <div id="db-panel" class="tab-panel">
-  <div id="sync-status" class="sync-status sync-loading">??甇???? Supabase??/div>
+  <div id="sync-status" class="sync-status sync-loading">⏳ 正在連線 Supabase…</div>
 
   <div class="db-upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
-    <div class="upload-icon">??</div>
-    <p><strong>暺?銝</strong>???暹?獢?ㄐ</p>
-    <p style="margin-top:4px">?舀 CSV?SON?XT</p>
+    <div class="upload-icon">📂</div>
+    <p><strong>點擊上傳</strong>或拖放檔案到這裡</p>
+    <p style="margin-top:4px">支援 CSV、JSON、TXT</p>
   </div>
   <input type="file" id="file-input" accept=".csv,.json,.txt" onchange="onFileSelect(event)" />
 
-  <div class="db-or">?? ?撓?交?摮???</div>
+  <div class="db-or">── 或輸入文字 ──</div>
   <div>
-    <textarea class="text-input-box" id="text-input" placeholder="?湔鞎潔?鞈??撓?亦霅摰嫖? rows="3"></textarea>
+    <textarea class="text-input-box" id="text-input" placeholder="直接貼上資料或輸入知識內容…" rows="3"></textarea>
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btn-pink" id="add-text-btn" onclick="addTextEntry()">嚗??啣??啗??澈</button>
+      <button class="btn-pink" id="add-text-btn" onclick="addTextEntry()">＋ 新增到資料庫</button>
     </div>
   </div>
 
   <div>
-    <div class="section-title">?? 撌脖??喟?鞈?嚗?span id="db-count">0</span> 蝑?繚 ???蝵桀??/div>
-    <div class="db-list" id="db-list"><div class="db-empty">頛銝凌?/div></div>
+    <div class="section-title">📋 已上傳的資料（<span id="db-count">0</span> 筆）· 所有裝置共用</div>
+    <div class="db-list" id="db-list"><div class="db-empty">載入中…</div></div>
   </div>
   <div style="display:flex;gap:8px;padding-bottom:20px">
-    <button class="btn-outline" onclick="clearAllDb()">?? 皜?券鞈?</button>
+    <button class="btn-outline" onclick="clearAllDb()">🗑 清除全部資料</button>
   </div>
 </div>
 
 <!-- LOG -->
 <div id="log-panel" class="tab-panel">
   <div class="stats-row">
-    <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">蝮賢?蝑</div></div>
-    <div class="stat-card"><div class="stat-num" id="stat-with-db">0</div><div class="stat-label">???澈</div></div>
-    <div class="stat-card"><div class="stat-num" id="stat-no-db">0</div><div class="stat-label">?∟??澈</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">總問答數</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-with-db">0</div><div class="stat-label">有資料庫</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-no-db">0</div><div class="stat-label">無資料庫</div></div>
   </div>
   <div class="log-controls">
-    <button class="log-sort-btn active" onclick="setSort('time',this)" id="sort-time">?? 靘???/button>
-    <button class="log-sort-btn" onclick="setSort('db',this)" id="sort-db">?? 靘??澈</button>
-    <button class="btn-outline export-btn" onclick="exportCSV()">漎??臬 CSV</button>
-    <button class="btn-outline" onclick="clearLog()">?? 皜閮?</button>
+    <button class="log-sort-btn active" onclick="setSort('time',this)" id="sort-time">🕐 依時間</button>
+    <button class="log-sort-btn" onclick="setSort('db',this)" id="sort-db">📂 依資料庫</button>
+    <button class="btn-outline export-btn" onclick="exportCSV()">⬇ 匯出 CSV</button>
+    <button class="btn-outline" onclick="clearLog()">🗑 清除記錄</button>
   </div>
-  <div class="log-list" id="log-list"><div class="log-empty">頛銝凌?/div></div>
+  <div class="log-list" id="log-list"><div class="log-empty">載入中…</div></div>
 </div>
 
 <script>
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 // SUPABASE INIT
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 const SUPABASE_URL = 'https://qwvlyskugcrsmawmchqu.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3dmx5c2t1Z2Nyc21hd21jaHF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMDUyMDIsImV4cCI6MjA4ODc4MTIwMn0.fSHFn1_2fy3a4OxEKO7Xxh2w_sCOZhUhC8olROWqrPg';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 // STATE
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 let isLoading = false;
 let chatHistory = [];
 let dbEntries = [];
@@ -263,9 +263,9 @@ let ragCondition = 'none';
 
 const LUNA_SVG = `<svg width="34" height="34" viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="22" fill="url(#mg)"/><defs><radialGradient id="mg" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="#ffd6e8"/><stop offset="100%" stop-color="#e8779a"/></radialGradient></defs><ellipse cx="22" cy="18" rx="13" ry="14" fill="#4a2040"/><ellipse cx="22" cy="24" rx="11" ry="12" fill="#fde8d0"/><ellipse cx="22" cy="12" rx="13" ry="7" fill="#4a2040"/><ellipse cx="10" cy="22" rx="3.5" ry="6" fill="#4a2040"/><ellipse cx="34" cy="22" rx="3.5" ry="6" fill="#4a2040"/><ellipse cx="11" cy="24" rx="2.2" ry="2.8" fill="#fcd5b0"/><ellipse cx="33" cy="24" rx="2.2" ry="2.8" fill="#fcd5b0"/><ellipse cx="18" cy="23" rx="2.5" ry="2.8" fill="white"/><ellipse cx="26" cy="23" rx="2.5" ry="2.8" fill="white"/><circle cx="18.6" cy="23.4" r="1.6" fill="#3d1a2e"/><circle cx="26.6" cy="23.4" r="1.6" fill="#3d1a2e"/><circle cx="19.2" cy="22.6" r="0.6" fill="white"/><circle cx="27.2" cy="22.6" r="0.6" fill="white"/><ellipse cx="14.5" cy="26.5" rx="3" ry="1.8" fill="#f48fb1" opacity="0.45"/><ellipse cx="29.5" cy="26.5" rx="3" ry="1.8" fill="#f48fb1" opacity="0.45"/><path d="M18.5 30 Q22 33 25.5 30" stroke="#d6637a" stroke-width="1.2" fill="none" stroke-linecap="round"/><circle cx="29" cy="13" r="3" fill="#ff6fa8" opacity="0.9"/><circle cx="29" cy="13" r="1.5" fill="#ffd6e8"/></svg>`;
 
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 // TABS
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 function switchTab(tab, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -274,9 +274,9 @@ function switchTab(tab, btn) {
   if (tab === 'log') renderLog();
 }
 
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 // HELPERS
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 function getTime() { return new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}); }
 function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
 function scrollToBottom() { const m=document.getElementById('messages'); m.scrollTop=m.scrollHeight; }
@@ -295,21 +295,23 @@ function setRagCondition(value) {
 
 function getConditionLabel() {
   return {
-    none: '?∟??澈',
-    20: '20 蝑??澈',
-    60: '60 蝑??澈',
-    100: '100 蝑??澈',
-    300: '300 蝑??澈'
-  }[ragCondition] || '?∟??澈';
+    none: '無資料庫',
+    20: '20 筆資料庫',
+    60: '60 筆資料庫',
+    100: '100 筆資料庫',
+    300: '300 筆資料庫'
+  }[ragCondition] || '無資料庫';
 }
 
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 // LOCAL RAG RETRIEVAL
-// ?桃?嚗?閬??游??澈?券憛策璅∪?嚗???箄?????賊???畾萸?// ?? 20 / 60 / 100 蝑??澈璇辣?典祕撽葉???Ｙ?撌桃??// ??????????????????????????????????????????????
+// 目的：不要把整個資料庫全部塞給模型，而是先挑出與問題最相關的片段。
+// 這讓 20 / 60 / 100 筆資料庫條件在實驗中真的產生差異。
+// ══════════════════════════════════════════════
 function normalizeText(s) {
   return (s || '')
     .toLowerCase()
-    .replace(/[嚗?嚗?嚗?.!?;:()\[\]{}"'`~]/g, ' ')
+    .replace(/[，。！？、；：,.!?;:()\[\]{}"'`~]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -359,18 +361,18 @@ function normalizeImportedRows(fileName, text) {
   }
 
   if (!rows.length) {
-    return [{ name: fileName, content: text, icon: '??' }];
+    return [{ name: fileName, content: text, icon: '📄' }];
   }
 
   return rows.map((r, i) => {
     const chunkId = r.chunk_id || r.record_id || r.id || `${fileName.replace(/\W+/g, '_')}-${i + 1}`;
-    const title = r.source_title || r['靘?璅?'] || r['璅?'] || r.title || r.name || '憍衣??亥??挾';
-    const type = r.chunk_type || r['?挾憿?'] || r.rag_condition || '';
-    const retrievalText = r.retrieval_text || r['瑼Ｙ揣??'] || r['銝剜??批捆'] || r['?啣側?摰?] || r.content || '';
-    const zh = r.answer_text_zh || r['銝剜??批捆'] || r['銝剜???'] || '';
-    const id = r.answer_text_id || r['?啣側?摰?] || r['?芰?啣側??閬?] || '';
-    const url = r.source_url || r['靘?蝬脣?'] || '';
-    const red = r.red_flags_id || r.red_flags_zh || r['蝝?霅西?'] || '';
+    const title = r.source_title || r['來源標題'] || r['標題'] || r.title || r.name || '婦科知識片段';
+    const type = r.chunk_type || r['片段類型'] || r.rag_condition || '';
+    const retrievalText = r.retrieval_text || r['檢索文字'] || r['中文內容'] || r['印尼文內容'] || r.content || '';
+    const zh = r.answer_text_zh || r['中文內容'] || r['中文摘要'] || '';
+    const id = r.answer_text_id || r['印尼文內容'] || r['自然印尼文摘要'] || '';
+    const url = r.source_url || r['來源網址'] || '';
+    const red = r.red_flags_id || r.red_flags_zh || r['紅旗警訊'] || '';
     const content = [
       `chunk_id: ${chunkId}`,
       `title: ${title}`,
@@ -381,7 +383,7 @@ function normalizeImportedRows(fileName, text) {
       red ? `red_flags: ${red}` : '',
       url ? `source_url: ${url}` : ''
     ].filter(Boolean).join('\n');
-    return { name: `${chunkId}嚚?{title}`, content, icon: '?妝' };
+    return { name: `${chunkId}｜${title}`, content, icon: '🧩' };
   });
 }
 
@@ -393,21 +395,21 @@ function scoreEntry(promptText, promptTokens, entry) {
     if (entryTokens.has(tok)) score += tok.length >= 5 ? 3 : 1;
     if ((entry.content || '').toLowerCase().includes(tok)) score += 0.5;
   }
-  const redWords = ['darah','perdarahan','pingsan','demam','hamil','nyeri','sakit','gatal','bau','keputihan','?箄?','??,'?潛?','?瑕?','??','?','?啣'];
-  if (redWords.some(w => normalizeText(promptText).includes(w)) && /red_flags|tanda bahaya|蝡撠梢|霅西?/i.test(entry.content || '')) score += 4;
+  const redWords = ['darah','perdarahan','pingsan','demam','hamil','nyeri','sakit','gatal','bau','keputihan','出血','暈','發燒','懷孕','劇痛','搔癢','異味'];
+  if (redWords.some(w => normalizeText(promptText).includes(w)) && /red_flags|tanda bahaya|立即就醫|警訊/i.test(entry.content || '')) score += 4;
   return score;
 }
 
 function getEntryStage(entry) {
   const text = `${entry.name || ''}\n${entry.content || ''}`.toLowerCase();
-  if (/plain_id|?芰?啣側隤?蝑?蝝?.test(text)) return '120-extra';
+  if (/plain_id|自然印尼語回答線索/.test(text)) return '120-extra';
   if (/rag_condition:\s*20-doc/.test(text)) return '20';
   if (/rag_condition:\s*60-chunk/.test(text)) return '60';
   if (/rag_condition:\s*100-chunk/.test(text)) return '100';
   if (/rag_condition:\s*300-depth/.test(text)) return '300';
-  if (/baseline_doc|20-doc|?渡???/.test(text)) return '20';
-  if (/prep|100-chunk|撠梢皞?/.test(text)) return '100';
-  if (/concept|symptom|red_flag|60-chunk|?詨?璁艙|??颲刻?|蝝?霅西?/.test(text)) return '60';
+  if (/baseline_doc|20-doc|整篇摘要/.test(text)) return '20';
+  if (/prep|100-chunk|就醫準備/.test(text)) return '100';
+  if (/concept|symptom|red_flag|60-chunk|核心概念|症狀辨識|紅旗警訊/.test(text)) return '60';
   return 'unknown';
 }
 
@@ -443,19 +445,19 @@ function retrieveRelevantDbEntries(prompt, topK = 5) {
 function buildRetrievedDbContext(prompt) {
   const topKByCondition = { none: 0, '20': 2, '60': 4, '100': 7, '300': 12 };
   const hits = retrieveRelevantDbEntries(prompt, topKByCondition[ragCondition] || 5);
-  const context = hits.map((e, i) => `??{getConditionLabel()}嚚AG-${i + 1}嚚core=${e._score}?n[${e.name}]\n${e.content}`).join('\n\n');
+  const context = hits.map((e, i) => `【${getConditionLabel()}｜RAG-${i + 1}｜score=${e._score}】\n[${e.name}]\n${e.content}`).join('\n\n');
   const sources = hits.map(e => e.name).join(' ; ');
   return { context, hits, sources, condition: ragCondition, conditionLabel: getConditionLabel() };
 }
 
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 // CHAT RENDER
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 function renderBotContent(text) {
   const parts = text.split(/\n---\n|\n---$/);
   if (parts.length >= 2) {
     const zh = parts[0].trim(), id = parts.slice(1).join('\n---\n').trim();
-    return `<div class="lang-block zh-block"><div class="lang-tag">?? 蝜?銝剜?</div><div class="lang-text">${escHtml(zh)}</div></div><div class="lang-block id-block"><div class="lang-tag">?? Bahasa Indonesia</div><div class="lang-text">${escHtml(id)}</div></div>`;
+    return `<div class="lang-block zh-block"><div class="lang-tag">🇹🇼 繁體中文</div><div class="lang-text">${escHtml(zh)}</div></div><div class="lang-block id-block"><div class="lang-tag">🇮🇩 Bahasa Indonesia</div><div class="lang-text">${escHtml(id)}</div></div>`;
   }
   return `<div class="lang-text">${escHtml(text)}</div>`;
 }
@@ -463,7 +465,7 @@ function addMessage(role, text) {
   const msgs = document.getElementById('messages');
   const div = document.createElement('div'); div.className='message '+role;
   const isBot = role==='bot';
-  div.innerHTML=`<div class="msg-av">${isBot?LUNA_SVG:'?'}</div><div class="bubble-wrap"><div class="sender">${isBot?'Luna':'雿?/ Kamu'}<span class="msg-time">${getTime()}</span></div><div class="bubble">${isBot?renderBotContent(text):escHtml(text)}</div></div>`;
+  div.innerHTML=`<div class="msg-av">${isBot?LUNA_SVG:'👤'}</div><div class="bubble-wrap"><div class="sender">${isBot?'Luna':'你 / Kamu'}<span class="msg-time">${getTime()}</span></div><div class="bubble">${isBot?renderBotContent(text):escHtml(text)}</div></div>`;
   msgs.appendChild(div); scrollToBottom();
 }
 function showTyping() {
@@ -475,12 +477,12 @@ function showTyping() {
 function removeTyping() { const el=document.getElementById('typing-indicator'); if(el) el.remove(); }
 function showError(msg) {
   const msgs=document.getElementById('messages'), div=document.createElement('div');
-  div.className='error-msg'; div.textContent='?? '+msg; msgs.appendChild(div); scrollToBottom();
+  div.className='error-msg'; div.textContent='⚠️ '+msg; msgs.appendChild(div); scrollToBottom();
 }
 
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 // SEND MESSAGE
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 async function sendMessage() {
   if (isLoading) return;
   const input = document.getElementById('user-input');
@@ -496,34 +498,34 @@ async function sendMessage() {
   try {
     const res = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({prompt, history:[], dbContext, retrievedSources: rag.sources, ragCondition: rag.conditionLabel})
+      body: JSON.stringify({prompt, history:chatHistory.slice(-12), dbContext, retrievedSources: rag.sources, ragCondition: rag.conditionLabel})
     });
     removeTyping();
-    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'隡箸??券隤?); }
+    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'伺服器錯誤'); }
     const data = await res.json();
-    const reply = data.reply||'嚗??嚗?;
+    const reply = data.reply||'（無回應）';
     addMessage('bot', reply);
     chatHistory.push({role:'model', text:reply});
     // Save to Supabase
     await sb.from('chat_log').insert({question:`[${rag.conditionLabel}] ${prompt}`, answer:reply, has_db:hasDb});
     await loadLog();
   } catch(err) {
-    removeTyping(); showError(err.message||'???憭望?'); chatHistory.pop();
+    removeTyping(); showError(err.message||'連線失敗'); chatHistory.pop();
   }
   isLoading=false; document.getElementById('send-btn').disabled=false; input.focus();
 }
 
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 // DATABASE (Supabase)
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 async function loadDb() {
-  setSyncStatus('loading','???郊鞈?摨思葉??);
+  setSyncStatus('loading','⏳ 同步資料庫中…');
   const {data, error} = await sb.from('db_entries').select('*').order('created_at',{ascending:true});
-  if (error) { setSyncStatus('err','?????憭望?嚗?+error.message); return; }
+  if (error) { setSyncStatus('err','❌ 連線失敗：'+error.message); return; }
   dbEntries = data || [];
   renderDb();
   updateDbBadge();
-  setSyncStatus('ok','??撌脣?甇伐????蝵桀?典?銝隞質??澈');
+  setSyncStatus('ok','✅ 已同步，所有裝置共用同一份資料庫');
 }
 
 function onDragOver(e){e.preventDefault();document.getElementById('drop-zone').classList.add('drag');}
@@ -537,65 +539,65 @@ function readFile(file) {
       const entries = normalizeImportedRows(file.name, e.target.result);
       await addManyDbEntries(entries);
     } catch (err) {
-      alert('瑼?閫??憭望?嚗? + err.message);
+      alert('檔案解析失敗：' + err.message);
     }
   };
   reader.readAsText(file,'UTF-8');
 }
 function addTextEntry() {
   const val=document.getElementById('text-input').value.trim(); if(!val) return;
-  addDbEntry('??頛詨 '+getTime(), val, '??');
+  addDbEntry('文字輸入 '+getTime(), val, '📝');
   document.getElementById('text-input').value='';
 }
-async function addDbEntry(name, content, icon='??') {
+async function addDbEntry(name, content, icon='📄') {
   const btn=document.getElementById('add-text-btn'); if(btn) btn.disabled=true;
-  setSyncStatus('loading','???脣?銝凌?);
+  setSyncStatus('loading','⏳ 儲存中…');
   const {data, error} = await sb.from('db_entries').insert({name, content, icon}).select().single();
-  if (error) { setSyncStatus('err','???脣?憭望?嚗?+error.message); if(btn) btn.disabled=false; return; }
+  if (error) { setSyncStatus('err','❌ 儲存失敗：'+error.message); if(btn) btn.disabled=false; return; }
   dbEntries.push(data); renderDb(); updateDbBadge();
-  setSyncStatus('ok','??撌脣摮????蝵桀??);
+  setSyncStatus('ok','✅ 已儲存，所有裝置共用');
   if(btn) btn.disabled=false;
 }
 async function addManyDbEntries(entries) {
   if (!entries.length) return;
-  setSyncStatus('loading',`??甇??臬 ${entries.length} 蝑霅?畾菊圳);
-  const payload = entries.map(e => ({ name: e.name, content: e.content, icon: e.icon || '?妝' }));
+  setSyncStatus('loading',`⏳ 正在匯入 ${entries.length} 筆知識片段…`);
+  const payload = entries.map(e => ({ name: e.name, content: e.content, icon: e.icon || '🧩' }));
   const {data, error} = await sb.from('db_entries').insert(payload).select();
-  if (error) { setSyncStatus('err','???臬憭望?嚗?+error.message); return; }
+  if (error) { setSyncStatus('err','❌ 匯入失敗：'+error.message); return; }
   dbEntries.push(...(data || []));
   renderDb(); updateDbBadge();
-  setSyncStatus('ok',`??撌脣??${entries.length} 蝑??予???芸?瑼Ｙ揣??賊? top 5 ?挾`);
+  setSyncStatus('ok',`✅ 已匯入 ${entries.length} 筆；聊天時會自動檢索最相關 top 5 片段`);
 }
 async function deleteDbEntry(id) {
   const {error} = await sb.from('db_entries').delete().eq('id',id);
-  if (error) { alert('?芷憭望?嚗?+error.message); return; }
+  if (error) { alert('刪除失敗：'+error.message); return; }
   dbEntries=dbEntries.filter(e=>e.id!==id); renderDb(); updateDbBadge();
 }
 async function clearAllDb() {
   if (!dbEntries.length) return;
-  if (!confirm('蝣箏?皜????澈?批捆嚗????蝵桅??憭梧?')) return;
+  if (!confirm('確定清除所有資料庫內容？（所有裝置都會消失）')) return;
   const {error} = await sb.from('db_entries').delete().neq('id',0);
-  if (error) { alert('皜憭望?嚗?+error.message); return; }
+  if (error) { alert('清除失敗：'+error.message); return; }
   dbEntries=[]; renderDb(); updateDbBadge();
 }
 function renderDb() {
   document.getElementById('db-count').textContent=dbEntries.length;
   const list=document.getElementById('db-list');
-  if (!dbEntries.length) { list.innerHTML='<div class="db-empty">撠鞈?嚗??單?獢?頛詨??敺???蝵桅?賜???/div>'; return; }
-  list.innerHTML=dbEntries.map(e=>`<div class="db-item"><div class="db-item-icon">${e.icon||'??'}</div><div><div class="db-item-name">${escHtml(e.name)}</div><div class="db-item-meta">${(e.content||'').length.toLocaleString()} 摮?</div></div><button class="db-item-del" onclick="deleteDbEntry(${e.id})">??/button></div>`).join('');
+  if (!dbEntries.length) { list.innerHTML='<div class="db-empty">尚無資料，上傳檔案或輸入文字後所有裝置都能看到</div>'; return; }
+  list.innerHTML=dbEntries.map(e=>`<div class="db-item"><div class="db-item-icon">${e.icon||'📄'}</div><div><div class="db-item-name">${escHtml(e.name)}</div><div class="db-item-meta">${(e.content||'').length.toLocaleString()} 字元</div></div><button class="db-item-del" onclick="deleteDbEntry(${e.id})">✕</button></div>`).join('');
 }
 function updateDbBadge() {
   const badge=document.getElementById('db-active-badge'), text=document.getElementById('db-badge-text');
   const candidates = getCandidateDbEntries();
   badge.classList.add('show');
-  if (ragCondition === 'none') text.textContent='?桀?璇辣嚗鞈?摨恬?baseline嚗?;
-  else if (dbEntries.length) text.textContent=`?桀?璇辣嚗?{getConditionLabel()}嚚??${candidates.length}/${dbEntries.length} 蝑;
-  else text.textContent=`?桀?璇辣嚗?{getConditionLabel()}嚚??芯??唾??;
+  if (ragCondition === 'none') text.textContent='目前條件：無資料庫（baseline）';
+  else if (dbEntries.length) text.textContent=`目前條件：${getConditionLabel()}｜可用 ${candidates.length}/${dbEntries.length} 筆`;
+  else text.textContent=`目前條件：${getConditionLabel()}｜尚未上傳資料`;
 }
 
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 // LOG (Supabase)
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 async function loadLog() {
   const {data, error} = await sb.from('chat_log').select('*').order('created_at',{ascending:false}).limit(200);
   if (error) return;
@@ -614,29 +616,29 @@ function setSort(mode,btn) {
 }
 function renderLog() {
   const list=document.getElementById('log-list');
-  if (!expLog.length) { list.innerHTML='<div class="log-empty">撠閮?嚗?憪?憭拙???????</div>'; return; }
+  if (!expLog.length) { list.innerHTML='<div class="log-empty">尚無記錄，開始聊天後會自動記錄 🌸</div>'; return; }
   let logs=[...expLog];
   if (sortMode==='db') logs.sort((a,b)=>b.hasDb-a.hasDb);
-  list.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-item-header"><span class="log-tag ${l.hasDb?'tag-db':'tag-nodb'}">${l.hasDb?'?? ???澈':'? ?∟??澈'}</span><span class="log-time">${l.time}</span></div><div class="log-q">Q: ${escHtml(l.question)}</div><div class="log-a">${escHtml(l.answer.replace(/\n---\n/g,' | '))}</div></div>`).join('');
+  list.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-item-header"><span class="log-tag ${l.hasDb?'tag-db':'tag-nodb'}">${l.hasDb?'📂 有資料庫':'💬 無資料庫'}</span><span class="log-time">${l.time}</span></div><div class="log-q">Q: ${escHtml(l.question)}</div><div class="log-a">${escHtml(l.answer.replace(/\n---\n/g,' | '))}</div></div>`).join('');
 }
 function exportCSV() {
-  if (!expLog.length) return alert('撠閮??臬??);
-  const rows=[['??','??','??','?臬???澈']];
-  expLog.forEach(l=>rows.push([l.time,l.question.replace(/"/g,'""'),l.answer.replace(/"/g,'""'),l.hasDb?'??:'??]));
+  if (!expLog.length) return alert('尚無記錄可匯出');
+  const rows=[['時間','問題','回答','是否有資料庫']];
+  expLog.forEach(l=>rows.push([l.time,l.question.replace(/"/g,'""'),l.answer.replace(/"/g,'""'),l.hasDb?'是':'否']));
   const csv=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='luna-log-'+Date.now()+'.csv'; a.click();
 }
 async function clearLog() {
   if (!expLog.length) return;
-  if (!confirm('蝣箏?皜??祕撽???嚗???蝵桅??憭梧?')) return;
+  if (!confirm('確定清除所有實驗記錄？（所有裝置都會消失）')) return;
   await sb.from('chat_log').delete().neq('id',0);
   expLog=[]; updateStats(); renderLog();
 }
 
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 // INIT
-// ??????????????????????????????????????????????
+// ══════════════════════════════════════════════
 
 function sendChip(btn, text) {
   document.getElementById('quick-chips')?.remove();
@@ -645,16 +647,16 @@ function sendChip(btn, text) {
 }
 
 (async function init() {
-  const welcome='?剁?? Luna ?\n雿隞交?Ｚ牧嚗??冽伐?銋??刻死敺?憟賣??岫蝘?憿靘停敺?撖????芯?銝韏瑟???鈭?寥?閬釣??暻潭????翰撠梢?n\n?? ?痊?脫?嚗?銝?怠葦嚗??質那?瑟??嚗???之?銵????乓摮?雿萄銵???敹恍??隢?敹怠停?急??亥那?n---\nHai sayang, aku Luna ?\nCerita pelan-pelan saja ya, tidak perlu malu. Masalah kewanitaan memang kadang bikin cemas. Luna temani kamu rapikan dulu, lihat mana yang perlu diperhatikan dan kapan sebaiknya segera periksa.\n\n?? Luna bukan dokter, jadi tidak bisa memberi diagnosis atau obat. Kalau nyeri berat, perdarahan banyak, demam, pingsan, sedang hamil lalu keluar darah, atau gejala cepat memburuk, sebaiknya segera ke dokter atau UGD.';
+  const welcome='嗨，我是 Luna 🌸\n你可以慢慢說，不用急，也不用覺得不好意思。婦科問題本來就很私密，我會陪你一起整理，看哪些地方需要注意、什麼時候要儘快就醫。\n\n⚠️ 免責聲明：我不是醫師，不能診斷或開藥；若有嚴重疼痛、大量出血、發燒、暈厥、懷孕合併出血或症狀快速惡化，請儘快就醫或急診。\n---\nHai sayang, aku Luna 🌸\nCerita pelan-pelan saja ya, tidak perlu malu. Masalah kewanitaan memang kadang bikin cemas. Luna temani kamu rapikan dulu, lihat mana yang perlu diperhatikan dan kapan sebaiknya segera periksa.\n\n⚠️ Luna bukan dokter, jadi tidak bisa memberi diagnosis atau obat. Kalau nyeri berat, perdarahan banyak, demam, pingsan, sedang hamil lalu keluar darah, atau gejala cepat memburuk, sebaiknya segera ke dokter atau UGD.';
   addMessage('bot', welcome);
   // Show quick chips
   const chips = [
-    { zh: '??銝?敺獐颲佗?', id: 'Apa penyebab menstruasi tidak teratur?' },
-    { zh: '?賢葆?啣虜隞?”隞暻潘?', id: 'Apa arti keputihan yang tidak normal?' },
-    { zh: 'PCOS ?臭?暻潘?', id: 'Apa itu PCOS?' },
-    { zh: '摮悅?豢??銋?銝甈∴?', id: 'Seberapa sering harus Pap smear?' },
-    { zh: '?游僑???芯???嚗?, id: 'Apa saja gejala menopause?' },
-    { zh: '??憒?蝺抵圾嚗?, id: 'Bagaimana cara mengurangi nyeri haid?' },
+    { zh: '月經不規律怎麼辦？', id: 'Apa penyebab menstruasi tidak teratur?' },
+    { zh: '白帶異常代表什麼？', id: 'Apa arti keputihan yang tidak normal?' },
+    { zh: 'PCOS 是什麼？', id: 'Apa itu PCOS?' },
+    { zh: '子宮頸抹片多久做一次？', id: 'Seberapa sering harus Pap smear?' },
+    { zh: '更年期有哪些症狀？', id: 'Apa saja gejala menopause?' },
+    { zh: '痛經如何緩解？', id: 'Bagaimana cara mengurangi nyeri haid?' },
   ];
   const msgs = document.getElementById('messages');
   const chipsDiv = document.createElement('div');
@@ -667,4 +669,3 @@ function sendChip(btn, text) {
 </script>
 </body>
 </html>
-
