@@ -2,6 +2,88 @@
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+function normalizeRagLevel(ragCondition = "無資料庫") {
+  const text = String(ragCondition).toLowerCase();
+  if (text.includes("300")) return "300";
+  if (text.includes("100")) return "100";
+  if (text.includes("60")) return "60";
+  if (text.includes("20")) return "20";
+  return "none";
+}
+
+function getMaxOutputTokensByLevel(ragCondition = "無資料庫") {
+  const level = normalizeRagLevel(ragCondition);
+  return {
+    none: 850,
+    "20": 1050,
+    "60": 1450,
+    "100": 2000,
+    "300": 3200,
+  }[level] || 1200;
+}
+
+function buildProgressionContract(ragCondition = "無資料庫") {
+  const level = normalizeRagLevel(ragCondition);
+  const contracts = {
+    none: `
+【本輪進展式回答契約：無資料庫 baseline】
+你必須刻意維持「低資訊量」。只允許：
+1. 一句最基本衛教方向。
+2. 一句安全提醒。
+3. 一個下一步建議。
+嚴格禁止：列症狀清單、診斷流程、排除病因、生育影響、後續追蹤、醫師可問問題、來源 chunk_id。
+中文段落控制在 120 字以內；印尼文段也要同等簡短。
+`.trim(),
+    "20": `
+【本輪進展式回答契約：20 筆資料庫】
+本輪只能呈現「第一層進展：核心定義」。只允許：
+1. 情緒承接：一句溫柔承接。
+2. 陪她整理：回答核心定義或基本差異。
+3. 安全提醒：最多 1 個最重要紅旗警訊。
+4. 本次使用來源：列 1–2 個 chunk_id 或片段名稱。
+嚴格禁止：完整症狀清單、診斷流程、排除病因、生育影響、後續追蹤、檢查項目、治療細節、可問醫師問題。
+如果檢索片段含有更深資料，也不能在 20 筆條件提前講出來。
+`.trim(),
+    "60": `
+【本輪進展式回答契約：60 筆資料庫】
+本輪必須比 20 筆多，但只能呈現「第二層進展：症狀辨識與警訊」。必須包含：
+1. 情緒承接。
+2. 核心定義或差異。
+3. 2–3 個相關症狀或辨識線索。
+4. 2 個需要就醫的警訊。
+5. 本次使用來源：列 2–4 個 chunk_id 或片段名稱。
+嚴格禁止：系統性診斷流程、鑑別/排除病因、生育影響、長期追蹤計畫、完整醫師提問清單。
+不要把 100 或 300 筆才該出現的內容提前講完。
+`.trim(),
+    "100": `
+【本輪進展式回答契約：100 筆資料庫】
+本輪必須比 60 筆多，呈現「第三層進展：診斷流程與排除病因」。必須包含：
+1. 情緒承接。
+2. 核心定義或差異。
+3. 症狀/警訊。
+4. 醫師可能如何評估：病史、理學/骨盆檢查、超音波、抽血、感染檢驗等，依題目選擇相關項目。
+5. 需要排除的相似病因或風險狀況。
+6. 本次使用來源：列 4–7 個 chunk_id 或片段名稱。
+限制：生育影響只能在題目直接詢問時簡短提到；不要展開長期追蹤、台灣就醫流程、完整醫病溝通腳本，那是 300 筆條件。
+`.trim(),
+    "300": `
+【本輪進展式回答契約：300 筆資料庫】
+本輪必須明顯比 100 筆更完整，呈現「第四層進展：完整照顧脈絡」。必須包含：
+1. 情緒承接，語氣像自然的印尼姐姐，不要像翻譯腔。
+2. 核心定義或差異。
+3. 症狀與警訊。
+4. 診斷流程與需要排除的病因。
+5. 若主題相關，說明生育、長期健康或心理壓力影響。
+6. 後續追蹤或回診觀察重點。
+7. 陪她準備 2–3 個可以問醫師的問題。
+8. 用自然印尼語補上文化/語用上較像真人的說法。
+9. 本次使用來源：列 6–12 個 chunk_id 或片段名稱。
+這一層不能只是把 100 筆重講一次；必須新增「追蹤、就醫準備、醫病溝通、生育/長期影響」至少兩類內容。
+`.trim(),
+  };
+  return contracts[level] || contracts.none;
+}
+
 function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition = "無資料庫") {
   const dbSection = dbContext
     ? `\n\n【本次檢索到的婦科知識片段】\n以下不是完整資料庫，而是系統依使用者問題挑出的 top-k 片段。你必須優先根據這些片段回答；若片段不足，請明確說資料不足，不要假裝知道。\n\n${dbContext}\n\n【本次命中來源】\n${retrievedSources || "未提供"}\n`
@@ -9,18 +91,7 @@ function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition =
   const conditionSection = dbContext
     ? `\n\n【本次 RAG 實驗條件】${ragCondition}。你只能根據本次提供的片段作答，不可引用未提供的資料庫內容。`
     : `\n\n【本次 RAG 實驗條件】無資料庫 baseline。這一輪沒有提供任何資料庫片段。你可以用一般健康教育常識回答，但不可聲稱「根據資料庫」、不可列 chunk_id、不可列「本次使用來源」為任何資料庫片段。結尾請寫：「本次使用來源：無資料庫 baseline」。`;
-  const depthSection = `
-
-【RAG 詳略層級規則：必須讓資料越多，回答越詳細】
-- 無資料庫 baseline：最簡短。只給一般衛教方向、1 個安全提醒、1 個建議下一步；不要列 chunk_id。
-- 20 筆資料庫：簡短。使用 1–2 個來源片段，只回答主題方向與最重要警訊。
-- 60 筆資料庫：中等。使用 2–4 個來源片段，加入症狀辨識與紅旗警訊，但不要展開太多就醫細節。
-- 100 筆資料庫：詳細。使用 4–7 個來源片段，加入就醫準備、可記錄資訊、可問醫師的問題。
-- 300 筆資料庫：最詳細。使用 6–12 個來源片段，必須加入：口語症狀理解、症狀組合、錯誤行為提醒、台灣就醫流程、可問醫師問題、來源限制。
-
-若本次條件是 300 筆，回答不可和 20/60 一樣短；必須明顯更完整。
-若本次條件是 20 筆，回答不可展開成 300 筆那麼詳細。
-`.trim();
+  const depthSection = buildProgressionContract(ragCondition);
 
   return `你是一位名叫 Luna 的婦科健康知識與就醫準備助理 🌸。
 【本版本為實驗 B：社交性語氣 Social Tone】
@@ -150,8 +221,8 @@ module.exports = async (req, res) => {
         parts: [{ text: msg.text }],
       })),
       generationConfig: {
-        maxOutputTokens: 2500,
-        temperature: 0.35,
+        maxOutputTokens: getMaxOutputTokensByLevel(ragCondition),
+        temperature: 0.25,
       },
     });
 
