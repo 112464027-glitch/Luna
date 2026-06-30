@@ -206,7 +206,7 @@
       <option value="60">60 筆</option>
       <option value="100">100 筆</option>
       <option value="300">300 筆</option>
-      <option value="420">420 筆（含白帶）</option>
+      <option value="420">420 筆</option>
     </select>
     <div id="db-active-badge" class="db-badge">📂 <span id="db-badge-text">已載入資料庫</span></div>
     <textarea id="user-input" rows="1" placeholder="詢問婦科健康問題 / Tanya masalah kesehatan wanita 🌸" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
@@ -259,7 +259,7 @@
       <option value="60">60 筆資料庫</option>
       <option value="100">100 筆資料庫</option>
       <option value="300">300 筆資料庫</option>
-      <option value="420">420 筆資料庫（含白帶）</option>
+      <option value="420">420 筆資料庫</option>
     </select>
     <button class="log-sort-btn active" onclick="setSort('time',this)" id="sort-time">🕐 依時間</button>
     <button class="log-sort-btn" onclick="setSort('db',this)" id="sort-db">📂 依資料庫</button>
@@ -327,7 +327,7 @@ function getConditionLabel() {
     60: '60 筆資料庫',
     100: '100 筆資料庫',
     300: '300 筆資料庫',
-    420: '420 筆資料庫（含白帶）'
+    420: '420 筆資料庫'
   }[ragCondition] || '無資料庫';
 }
 
