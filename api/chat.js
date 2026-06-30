@@ -194,6 +194,55 @@ ${text}
   return isBilingualReply(repairedText) ? repairedText : `${text.trim()}\n---\nMaaf sayang, format Bahasa Indonesia belum berhasil dibuat. Coba kirim ulang pertanyaannya ya. Luna bukan dokter dan tidak bisa memberi diagnosis atau obat.`;
 }
 
+function extractRagFacts(dbContext = "") {
+  const zhFacts = [...String(dbContext).matchAll(/answer_zh:\s*([^\n]+)/g)].map((m) => m[1].trim()).filter(Boolean);
+  const idFacts = [...String(dbContext).matchAll(/answer_id:\s*([^\n]+)/g)].map((m) => m[1].trim()).filter(Boolean);
+  const chunks = [...String(dbContext).matchAll(/chunk_id:\s*([^\n]+)/g)].map((m) => m[1].trim()).filter(Boolean);
+  return {
+    zhFacts: [...new Set(zhFacts)],
+    idFacts: [...new Set(idFacts)],
+    chunks: [...new Set(chunks)],
+  };
+}
+
+function firstItems(items, count, fallback) {
+  const picked = items.filter(Boolean).slice(0, count);
+  return picked.length ? picked : [fallback];
+}
+
+function formatSources(chunks, retrievedSources, count) {
+  const fromChunks = firstItems(chunks, count, "").filter(Boolean);
+  if (fromChunks.length) return fromChunks.join("、");
+  return retrievedSources || "本次檢索片段";
+}
+
+function buildFallbackReply(prompt, dbContext = "", retrievedSources = "", ragCondition = "無資料庫") {
+  const level = normalizeRagLevel(ragCondition);
+  const { zhFacts, idFacts, chunks } = extractRagFacts(dbContext);
+  const sourceCount = { none: 0, "20": 2, "60": 4, "100": 7, "300": 12 }[level] || 2;
+  const sources = formatSources(chunks, retrievedSources, sourceCount);
+  const zh = firstItems(zhFacts, 8, "目前沒有足夠的資料庫片段可支持詳細回答，因此 Luna 只能先陪你整理一般就醫安全建議。");
+  const id = firstItems(idFacts, 8, "Saat ini potongan basis data belum cukup untuk memberi jawaban rinci, jadi Luna temani kamu merapikan arahan keamanan umum dulu.");
+
+  if (level === "none") {
+    return `我知道這種問題會讓人有點不安。先用最基本方式看：如果症狀持續、變嚴重，或有劇烈疼痛、大量出血、發燒、暈厥，請儘快就醫。你可以先記錄症狀開始時間。本次使用來源：無資料庫 baseline。\n---\nAku paham ini bisa bikin khawatir. Untuk arahan paling dasar: kalau gejala menetap, makin berat, atau ada nyeri hebat, perdarahan banyak, demam, atau pingsan, sebaiknya segera periksa. Kamu bisa mulai dengan mencatat kapan gejala muncul. Sumber yang dipakai: baseline tanpa basis data.`;
+  }
+
+  if (level === "20") {
+    return `我先陪你抓最核心的重點：${zh[0]}\n\n先不用自己嚇自己，但如果症狀突然變嚴重、疼痛很強、發燒、暈厥或大量出血，請儘快就醫。\n\n本次使用來源：${sources}\n---\nAku temani kamu ambil inti utamanya dulu: ${id[0]}\n\nPelan-pelan ya, tidak perlu langsung panik. Tapi kalau gejala tiba-tiba memburuk, nyeri sangat kuat, demam, pingsan, atau perdarahan banyak, sebaiknya segera periksa.\n\nSumber yang dipakai: ${sources}`;
+  }
+
+  if (level === "60") {
+    return `我知道你想弄清楚差別，我們慢慢整理。核心重點是：${zh[0]}\n\n可以觀察的症狀線索：\n1. ${zh[1] || zh[0]}\n2. ${zh[2] || "症狀是否持續、變嚴重，或和月經、分泌物、發燒等變化一起出現。"}\n\n比較需要趕快就醫的是：劇烈疼痛、大量出血、發燒、暈厥、懷孕合併出血，或症狀快速惡化。\n\n本次使用來源：${sources}\n---\nAku paham kamu ingin membedakan kondisinya, kita rapikan pelan-pelan ya. Intinya: ${id[0]}\n\nTanda gejala yang bisa diperhatikan:\n1. ${id[1] || id[0]}\n2. ${id[2] || "Apakah gejala menetap, makin berat, atau muncul bersama perubahan haid, keputihan, atau demam."}\n\nYang sebaiknya cepat diperiksa: nyeri hebat, perdarahan banyak, demam, pingsan, hamil disertai perdarahan, atau gejala cepat memburuk.\n\nSumber yang dipakai: ${sources}`;
+  }
+
+  if (level === "100") {
+    return `你願意把問題問清楚很重要，我們把它整理成看診時能用的方向。核心重點：${zh[0]}\n\n症狀與警訊：${zh[1] || zh[0]}\n\n醫師可能會怎麼評估：通常會問症狀開始時間、月經或出血狀況、疼痛位置、是否發燒、是否可能懷孕與過去病史；再依情況安排骨盆檢查、超音波、抽血或感染檢驗。\n\n需要排除的狀況：醫師會判斷是否可能有感染、荷爾蒙或排卵問題、卵巢/子宮結構問題，或其他需要急性處理的原因。\n\n本次使用來源：${sources}\n---\nMakasih ya sudah bertanya dengan jelas. Kita susun jadi bekal untuk periksa. Intinya: ${id[0]}\n\nGejala dan tanda bahaya: ${id[1] || id[0]}\n\nKemungkinan penilaian dokter: dokter biasanya menanyakan kapan gejala mulai, pola haid atau perdarahan, lokasi nyeri, demam, kemungkinan hamil, dan riwayat kesehatan; lalu bila perlu dilakukan pemeriksaan panggul, USG, tes darah, atau pemeriksaan infeksi.\n\nHal yang perlu disingkirkan: dokter akan menilai kemungkinan infeksi, masalah hormon atau ovulasi, masalah struktur ovarium/rahim, atau kondisi akut yang perlu ditangani cepat.\n\nSumber yang dipakai: ${sources}`;
+  }
+
+  return `我陪你把它整理完整一點，這樣你去看診時比較不會慌。核心重點：${zh[0]}\n\n症狀與警訊：\n1. ${zh[1] || zh[0]}\n2. ${zh[2] || "若症狀持續、加劇，或合併出血、發燒、暈厥，需要提高警覺。"}\n\n診斷與排除方向：${zh[3] || "醫師通常會依病史、身體/骨盆檢查、超音波、抽血或感染檢驗來判斷，並排除相似病因。"}\n\n生育或長期影響：${zh[4] || "若問題與卵巢功能、慢性發炎、荷爾蒙或排卵相關，可能需要進一步評估生育與長期健康影響。"}\n\n後續可以記錄：症狀何時出現、疼痛程度、出血量、分泌物變化、是否發燒，以及休息或用藥後是否改善。\n\n你可以溫和但清楚地問醫師：\n1. 目前最需要排除的是哪幾種原因？\n2. 我需要超音波、抽血或感染檢查嗎？\n3. 如果症狀再出現，什麼情況要立刻回診或急診？\n\n本次使用來源：${sources}\n---\nAku temani kamu rapikan lebih lengkap ya, supaya saat periksa kamu tidak terlalu bingung. Intinya: ${id[0]}\n\nGejala dan tanda bahaya:\n1. ${id[1] || id[0]}\n2. ${id[2] || "Kalau gejala menetap, makin berat, atau disertai perdarahan, demam, atau pingsan, perlu lebih waspada."}\n\nArah diagnosis dan hal yang perlu disingkirkan: ${id[3] || "Dokter biasanya menilai dari riwayat gejala, pemeriksaan tubuh/panggul, USG, tes darah, atau pemeriksaan infeksi, lalu menyingkirkan penyebab yang mirip."}\n\nDampak kesuburan atau jangka panjang: ${id[4] || "Jika berkaitan dengan fungsi ovarium, peradangan kronis, hormon, atau ovulasi, dampak kesuburan dan kesehatan jangka panjang mungkin perlu dinilai."}\n\nYang bisa kamu catat: kapan gejala muncul, tingkat nyeri, jumlah perdarahan, perubahan keputihan, apakah ada demam, dan apakah membaik setelah istirahat atau obat.\n\nKamu bisa tanya dokter dengan pelan tapi jelas:\n1. Penyebab apa yang paling perlu disingkirkan sekarang?\n2. Apakah saya perlu USG, tes darah, atau pemeriksaan infeksi?\n3. Kalau gejala muncul lagi, kapan harus segera kembali atau ke UGD?\n\nSumber yang dipakai: ${sources}`;
+}
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
@@ -232,6 +281,9 @@ module.exports = async (req, res) => {
     return res.status(200).json({ reply: text });
   } catch (err) {
     console.error("Gemini API Error:", err);
+    const fallback = buildFallbackReply(prompt.trim(), dbContext, retrievedSources, ragCondition);
+    return res.status(200).json({ reply: fallback, fallback: true });
+    /*
     const message =
       err.message?.includes("API_KEY_INVALID")
         ? "API 金鑰無效，請確認 GEMINI_API_KEY 設定是否正確"
@@ -239,5 +291,6 @@ module.exports = async (req, res) => {
         ? "已超過 API 使用額度，請稍後再試"
         : "AI 服務暫時無法使用，請稍後再試";
     return res.status(500).json({ error: message });
+    */
   }
 };
