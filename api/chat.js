@@ -231,11 +231,17 @@ function formatSources(chunks, retrievedSources, count) {
 
 function buildFallbackReply(prompt, dbContext = "", retrievedSources = "", ragCondition = "無資料庫") {
   const level = normalizeRagLevel(ragCondition);
+  const promptText = String(prompt || "").toLowerCase();
+  const asksDischarge = /分泌物|白帶|陰道分泌|keputihan|cairan vagina|gatal|搔癢|癢|bau|異味|odor|黴菌|霉菌|細菌性陰道炎|bv/.test(promptText);
   const { zhFacts, idFacts, chunks } = extractRagFacts(dbContext);
   const sourceCount = { none: 0, "20": 2, "60": 4, "100": 7, "300": 12 }[level] || 2;
   const sources = formatSources(chunks, retrievedSources, sourceCount);
   const zh = firstItems(zhFacts, 8, "目前沒有足夠的資料庫片段可支持詳細回答，因此 Luna 只能先陪你整理一般就醫安全建議。");
   const id = firstItems(idFacts, 8, "Saat ini potongan basis data belum cukup untuk memberi jawaban rinci, jadi Luna temani kamu merapikan arahan keamanan umum dulu.");
+
+  if (asksDischarge && !dbContext) {
+    return `我先陪你把「分泌物」這件事整理一下。分泌物會因為月經週期、排卵、性行為、懷孕、感染或清潔習慣而改變。透明或白色、沒有臭味、沒有搔癢疼痛，有時可能是正常變化；但如果變成黃綠色、灰白色、豆腐渣狀、有魚腥味、搔癢、灼熱、下腹痛、發燒或出血，就建議看婦產科。\n\n你可以先記錄顏色、味道、量、是否搔癢或疼痛、是不是和月經或性行為有關。Luna 不能診斷或開藥，所以不要自己亂買抗生素或塞劑喔。\n\n本次使用來源：目前資料庫沒有足夠白帶/分泌物片段，使用一般衛教備援。\n---\nPelan-pelan ya, Mbak. Soal keputihan atau cairan vagina, memang bisa berubah karena siklus haid, masa ovulasi, hubungan seksual, kehamilan, infeksi, atau cara membersihkan area kewanitaan. Kalau cairannya bening atau putih, tidak bau, tidak gatal, dan tidak nyeri, kadang itu masih bisa termasuk perubahan normal. Tapi kalau warnanya kuning kehijauan, abu-abu, menggumpal seperti tahu, bau amis, gatal, terasa panas, nyeri perut bawah, demam, atau ada darah, sebaiknya cek ke dokter kandungan ya.\n\nKamu bisa catat dulu warnanya, baunya, jumlahnya, ada gatal atau nyeri nggak, dan munculnya dekat haid atau setelah berhubungan nggak. Luna bukan dokter, jadi nggak bisa memastikan diagnosis atau kasih obat. Jangan asal beli antibiotik atau obat vagina sendiri ya, sayang.\n\nSumber yang dipakai: basis data saat ini belum punya potongan yang cukup tentang keputihan/cairan vagina, jadi Luna memakai jawaban edukasi umum sebagai cadangan.`;
+  }
 
   if (level === "none") {
     return `我知道這種問題會讓人有點不安。先用最基本方式看：如果症狀持續、變嚴重，或有劇烈疼痛、大量出血、發燒、暈厥，請儘快就醫。你可以先記錄症狀開始時間。本次使用來源：無資料庫 baseline。\n---\nAku paham ini bisa bikin khawatir. Gambaran gampangnya begini, sayang: kalau gejalanya terus muncul, makin berat, atau ada nyeri hebat, perdarahan banyak, demam, atau pingsan, sebaiknya cepat periksa ya. Kamu bisa mulai dari mencatat kapan gejalanya muncul. Sumber yang dipakai: baseline tanpa basis data.`;

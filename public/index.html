@@ -425,6 +425,33 @@ function scoreEntry(promptText, promptTokens, entry) {
   return score;
 }
 
+function detectPromptTopic(promptText) {
+  const text = normalizeText(promptText);
+  if (/分泌物|白帶|陰道分泌|keputihan|cairan vagina|vagina discharge|gatal|搔癢|癢|bau|異味|odor|黴菌|霉菌|細菌性陰道炎|bv/.test(text)) return 'discharge';
+  if (/痛經|經痛|nyeri haid|dismenore|haid sakit|腹痛/.test(text)) return 'dysmenorrhea';
+  if (/pcos|多囊|polikistik|rotterdam/.test(text)) return 'pcos';
+  if (/更年期|停經|menopause|hot flash|熱潮紅/.test(text)) return 'menopause';
+  if (/pid|骨盆腔發炎|radang panggul/.test(text)) return 'pid';
+  if (/囊腫|kista|cyst/.test(text)) return 'cyst';
+  if (/卵巢早衰|poi|ovarium primer|premature ovarian/.test(text)) return 'poi';
+  return 'general';
+}
+
+function entryMatchesPromptTopic(entry, topic) {
+  if (topic === 'general') return true;
+  const text = normalizeText(`${entry.name || ''}\n${entry.content || ''}`);
+  const patterns = {
+    discharge: /分泌物|白帶|陰道分泌|keputihan|cairan vagina|gatal|搔癢|癢|bau|異味|odor|黴菌|霉菌|細菌性陰道炎|bv|trikomoniasis|vaginitis/,
+    dysmenorrhea: /痛經|經痛|nyeri haid|dismenore|haid sakit/,
+    pcos: /pcos|多囊|polikistik|rotterdam/,
+    menopause: /更年期|停經|menopause|hot flash|熱潮紅/,
+    pid: /pid|骨盆腔發炎|radang panggul|pelvic inflammatory/,
+    cyst: /囊腫|kista|cyst/,
+    poi: /卵巢早衰|poi|primary ovarian insufficiency|premature ovarian/
+  };
+  return patterns[topic]?.test(text) || false;
+}
+
 function getEntryStage(entry) {
   const text = `${entry.name || ''}\n${entry.content || ''}`.toLowerCase();
   if (/plain_id|自然印尼語回答線索/.test(text)) return '120-extra';
@@ -456,7 +483,9 @@ function getCandidateDbEntries() {
 }
 
 function retrieveRelevantDbEntries(prompt, topK = 5) {
-  const candidates = getCandidateDbEntries();
+  const topic = detectPromptTopic(prompt);
+  let candidates = getCandidateDbEntries();
+  candidates = candidates.filter(e => entryMatchesPromptTopic(e, topic));
   if (!candidates.length) return [];
   const promptTokens = tokenize(prompt);
   const ranked = candidates
