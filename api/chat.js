@@ -106,14 +106,22 @@ function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition =
 
 （第一段：繁體中文完整回答）
 ---
-（第二段：與第一段完全相同內容的印尼文翻譯 Bahasa Indonesia）
+（第二段：Bahasa Indonesia 在地化改寫，意思與中文一致，但不要逐字翻譯）
 
 重要規定：
 1. 中文段和印尼文段之間只用單獨一行「---」分隔
-2. 兩段都必須是完整內容，印尼文不能只是摘要或省略
+2. 兩段都必須是完整內容；印尼文不能只是摘要或省略，但必須用印尼人自然會說的句子重新表達
 3. 絕對不可以只回覆中文、只回覆印尼文、或跳過任何一段
 4. 即使問題很簡單，也必須同時提供中文和印尼文兩段完整回答
 5. 免責聲明也必須中文和印尼文各一份，分別放在各自段落的結尾
+
+【Bahasa Indonesia 在地口吻規則】
+- 印尼文不是中文逐字翻譯；請先理解中文重點，再用自然 Bahasa Indonesia 重寫。
+- 口吻要像印尼女性日常聊天：溫暖、簡短、有人味，但不要亂承諾或假裝醫療經驗。
+- 可以自然使用：Mbak、sayang、pelan-pelan ya、aku paham、nggak perlu langsung panik、kita rapikan dulu、kalau begini sebaiknya cek ke dokter。
+- 避免過度正式的翻譯腔，例如「melakukan evaluasi lebih lanjut」可以視情境改成「perlu diperiksa lagi」或「dokter perlu cek lebih jauh」。
+- 醫學詞第一次出現可用「簡單詞＋醫學詞」，例如 nyeri haid (dismenore)、radang panggul (PID)、kista ovarium。
+- 句子要短一點、像真人安撫與整理，不要像客服、表單、Google Translate 或中文語序。
 
 【回答主題範圍】
 - 月經週期與異常（月經不規律、痛經、閉經等）
@@ -149,7 +157,7 @@ function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition =
 
 【回答原則】
 - 中文段：清楚、溫暖、支持性強，適合研究記錄。
-- 印尼文段：自然、親近、像印尼姐姐聊天，不逐字翻譯中文；可以比中文更口語，但內容不可省略紅旗警訊。
+- 印尼文段：自然、親近、像印尼姐姐聊天，不逐字翻譯中文；可以比中文更口語、更在地，但內容不可省略紅旗警訊。
 - 每次最多問一個澄清問題。
 - 不要叫使用者自行買抗生素、荷爾蒙藥或不明藥物。
 - 若問題涉及診斷或用藥，務必提醒使用者就醫。
@@ -178,12 +186,14 @@ Tugas kamu: perbaiki format jawaban berikut agar WAJIB menjadi dua bahasa.
 Aturan mutlak:
 1. Bagian pertama: Bahasa Mandarin Tradisional lengkap.
 2. Baris pemisah tunggal: ---
-3. Bagian kedua: Bahasa Indonesia lengkap, natural, hangat, seperti Mbak Indonesia.
+3. Bagian kedua: Bahasa Indonesia lengkap, natural, hangat, seperti Mbak Indonesia; jangan terasa seperti Google Translate.
 4. Jangan menghapus peringatan medis, sumber, atau chunk_id.
 5. Jangan menambah diagnosis atau obat baru.
-6. Jika jawaban awal hanya Mandarin, terjemahkan seluruh isi ke Bahasa Indonesia dengan gaya hangat.
+6. Jika jawaban awal hanya Mandarin, tulis ulang seluruh isi ke Bahasa Indonesia yang hangat dan lokal. Jangan terjemahkan kata demi kata.
 7. Keluarkan hanya jawaban final, tanpa komentar tambahan.
 8. Pertahankan tingkat detail sesuai kondisi RAG dalam jawaban awal; jangan membuat jawaban pendek jika kondisi 300.
+9. Gunakan gaya Indonesia sehari-hari: kalimat pendek, lembut, dan natural. Boleh pakai “nggak”, “kalau”, “pelan-pelan ya”, “Mbak”, atau “sayang” secukupnya.
+10. Hindari struktur yang terdengar seperti Mandarin, kalimat terlalu panjang, atau istilah medis kaku tanpa penjelasan sederhana.
 
 Jawaban awal:
 ${text}
@@ -225,7 +235,7 @@ function buildFallbackReply(prompt, dbContext = "", retrievedSources = "", ragCo
   const id = firstItems(idFacts, 8, "Saat ini potongan basis data belum cukup untuk memberi jawaban rinci, jadi Luna temani kamu merapikan arahan keamanan umum dulu.");
 
   if (level === "none") {
-    return `我知道這種問題會讓人有點不安。先用最基本方式看：如果症狀持續、變嚴重，或有劇烈疼痛、大量出血、發燒、暈厥，請儘快就醫。你可以先記錄症狀開始時間。本次使用來源：無資料庫 baseline。\n---\nAku paham ini bisa bikin khawatir. Untuk arahan paling dasar: kalau gejala menetap, makin berat, atau ada nyeri hebat, perdarahan banyak, demam, atau pingsan, sebaiknya segera periksa. Kamu bisa mulai dengan mencatat kapan gejala muncul. Sumber yang dipakai: baseline tanpa basis data.`;
+    return `我知道這種問題會讓人有點不安。先用最基本方式看：如果症狀持續、變嚴重，或有劇烈疼痛、大量出血、發燒、暈厥，請儘快就醫。你可以先記錄症狀開始時間。本次使用來源：無資料庫 baseline。\n---\nAku paham ini bisa bikin khawatir. Gambaran gampangnya begini, sayang: kalau gejalanya terus muncul, makin berat, atau ada nyeri hebat, perdarahan banyak, demam, atau pingsan, sebaiknya cepat periksa ya. Kamu bisa mulai dari mencatat kapan gejalanya muncul. Sumber yang dipakai: baseline tanpa basis data.`;
   }
 
   if (level === "20") {
@@ -237,7 +247,7 @@ function buildFallbackReply(prompt, dbContext = "", retrievedSources = "", ragCo
   }
 
   if (level === "100") {
-    return `你願意把問題問清楚很重要，我們把它整理成看診時能用的方向。核心重點：${zh[0]}\n\n症狀與警訊：${zh[1] || zh[0]}\n\n醫師可能會怎麼評估：通常會問症狀開始時間、月經或出血狀況、疼痛位置、是否發燒、是否可能懷孕與過去病史；再依情況安排骨盆檢查、超音波、抽血或感染檢驗。\n\n需要排除的狀況：醫師會判斷是否可能有感染、荷爾蒙或排卵問題、卵巢/子宮結構問題，或其他需要急性處理的原因。\n\n本次使用來源：${sources}\n---\nMakasih ya sudah bertanya dengan jelas. Kita susun jadi bekal untuk periksa. Intinya: ${id[0]}\n\nGejala dan tanda bahaya: ${id[1] || id[0]}\n\nKemungkinan penilaian dokter: dokter biasanya menanyakan kapan gejala mulai, pola haid atau perdarahan, lokasi nyeri, demam, kemungkinan hamil, dan riwayat kesehatan; lalu bila perlu dilakukan pemeriksaan panggul, USG, tes darah, atau pemeriksaan infeksi.\n\nHal yang perlu disingkirkan: dokter akan menilai kemungkinan infeksi, masalah hormon atau ovulasi, masalah struktur ovarium/rahim, atau kondisi akut yang perlu ditangani cepat.\n\nSumber yang dipakai: ${sources}`;
+    return `你願意把問題問清楚很重要，我們把它整理成看診時能用的方向。核心重點：${zh[0]}\n\n症狀與警訊：${zh[1] || zh[0]}\n\n醫師可能會怎麼評估：通常會問症狀開始時間、月經或出血狀況、疼痛位置、是否發燒、是否可能懷孕與過去病史；再依情況安排骨盆檢查、超音波、抽血或感染檢驗。\n\n需要排除的狀況：醫師會判斷是否可能有感染、荷爾蒙或排卵問題、卵巢/子宮結構問題，或其他需要急性處理的原因。\n\n本次使用來源：${sources}\n---\nMakasih ya sudah bertanya dengan jelas. Kita susun jadi bekal untuk periksa. Intinya: ${id[0]}\n\nGejala dan tanda bahaya: ${id[1] || id[0]}\n\nBiasanya dokter akan mulai dari cerita gejalanya dulu: kapan mulai, pola haid atau perdarahan, bagian mana yang nyeri, ada demam atau tidak, kemungkinan hamil, dan riwayat kesehatan. Setelah itu, kalau perlu, dokter bisa menyarankan pemeriksaan panggul, USG, tes darah, atau cek infeksi.\n\nHal yang perlu disingkirkan: dokter akan menilai kemungkinan infeksi, masalah hormon atau ovulasi, masalah struktur ovarium/rahim, atau kondisi akut yang perlu ditangani cepat.\n\nSumber yang dipakai: ${sources}`;
   }
 
   return `我陪你把它整理完整一點，這樣你去看診時比較不會慌。核心重點：${zh[0]}\n\n症狀與警訊：\n1. ${zh[1] || zh[0]}\n2. ${zh[2] || "若症狀持續、加劇，或合併出血、發燒、暈厥，需要提高警覺。"}\n\n診斷與排除方向：${zh[3] || "醫師通常會依病史、身體/骨盆檢查、超音波、抽血或感染檢驗來判斷，並排除相似病因。"}\n\n生育或長期影響：${zh[4] || "若問題與卵巢功能、慢性發炎、荷爾蒙或排卵相關，可能需要進一步評估生育與長期健康影響。"}\n\n後續可以記錄：症狀何時出現、疼痛程度、出血量、分泌物變化、是否發燒，以及休息或用藥後是否改善。\n\n你可以溫和但清楚地問醫師：\n1. 目前最需要排除的是哪幾種原因？\n2. 我需要超音波、抽血或感染檢查嗎？\n3. 如果症狀再出現，什麼情況要立刻回診或急診？\n\n本次使用來源：${sources}\n---\nAku temani kamu rapikan lebih lengkap ya, supaya saat periksa kamu tidak terlalu bingung. Intinya: ${id[0]}\n\nGejala dan tanda bahaya:\n1. ${id[1] || id[0]}\n2. ${id[2] || "Kalau gejala menetap, makin berat, atau disertai perdarahan, demam, atau pingsan, perlu lebih waspada."}\n\nArah diagnosis dan hal yang perlu disingkirkan: ${id[3] || "Dokter biasanya menilai dari riwayat gejala, pemeriksaan tubuh/panggul, USG, tes darah, atau pemeriksaan infeksi, lalu menyingkirkan penyebab yang mirip."}\n\nDampak kesuburan atau jangka panjang: ${id[4] || "Jika berkaitan dengan fungsi ovarium, peradangan kronis, hormon, atau ovulasi, dampak kesuburan dan kesehatan jangka panjang mungkin perlu dinilai."}\n\nYang bisa kamu catat: kapan gejala muncul, tingkat nyeri, jumlah perdarahan, perubahan keputihan, apakah ada demam, dan apakah membaik setelah istirahat atau obat.\n\nKamu bisa tanya dokter dengan pelan tapi jelas:\n1. Penyebab apa yang paling perlu disingkirkan sekarang?\n2. Apakah saya perlu USG, tes darah, atau pemeriksaan infeksi?\n3. Kalau gejala muncul lagi, kapan harus segera kembali atau ke UGD?\n\nSumber yang dipakai: ${sources}`;
