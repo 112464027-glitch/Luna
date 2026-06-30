@@ -4,6 +4,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 function normalizeRagLevel(ragCondition = "無資料庫") {
   const text = String(ragCondition).toLowerCase();
+  if (text.includes("420")) return "420";
   if (text.includes("300")) return "300";
   if (text.includes("100")) return "100";
   if (text.includes("60")) return "60";
@@ -19,6 +20,7 @@ function getMaxOutputTokensByLevel(ragCondition = "無資料庫") {
     "60": 1450,
     "100": 2000,
     "300": 3200,
+    "420": 3600,
   }[level] || 1200;
 }
 
@@ -79,6 +81,21 @@ function buildProgressionContract(ragCondition = "無資料庫") {
 8. 用自然印尼語補上文化/語用上較像真人的說法。
 9. 本次使用來源：列 6–12 個 chunk_id 或片段名稱。
 這一層不能只是把 100 筆重講一次；必須新增「追蹤、就醫準備、醫病溝通、生育/長期影響」至少兩類內容。
+`.trim(),
+    "420": `
+【本輪進展式回答契約：420 筆資料庫（含白帶補充）】
+本輪是目前最完整的擴充資料庫，必須比 300 筆更能處理白帶、陰道分泌物、keputihan、異味、搔癢等問題。
+如果使用者問分泌物/白帶/keputihan，必須優先回答分泌物主題，不可轉去經痛、PCOS 或其他主題。
+必須包含：
+1. 情緒承接，語氣像自然的印尼姐姐，不要像翻譯腔。
+2. 核心定義或可能原因。
+3. 正常變化與異常警訊的區分。
+4. 醫師可能如何檢查與需要排除的感染或其他原因。
+5. 自我照護與不要自行亂用抗生素/塞劑的提醒。
+6. 何時需要就醫或急診。
+7. 陪她準備 2–3 個可以問醫師的問題。
+8. 自然 Bahasa Indonesia 表達，不要 Google 翻譯腔。
+9. 本次使用來源：列 6–14 個 chunk_id 或片段名稱。
 `.trim(),
   };
   return contracts[level] || contracts.none;
@@ -234,7 +251,7 @@ function buildFallbackReply(prompt, dbContext = "", retrievedSources = "", ragCo
   const promptText = String(prompt || "").toLowerCase();
   const asksDischarge = /分泌物|白帶|陰道分泌|keputihan|cairan vagina|gatal|搔癢|癢|bau|異味|odor|黴菌|霉菌|細菌性陰道炎|bv/.test(promptText);
   const { zhFacts, idFacts, chunks } = extractRagFacts(dbContext);
-  const sourceCount = { none: 0, "20": 2, "60": 4, "100": 7, "300": 12 }[level] || 2;
+  const sourceCount = { none: 0, "20": 2, "60": 4, "100": 7, "300": 12, "420": 14 }[level] || 2;
   const sources = formatSources(chunks, retrievedSources, sourceCount);
   const zh = firstItems(zhFacts, 8, "目前沒有足夠的資料庫片段可支持詳細回答，因此 Luna 只能先陪你整理一般就醫安全建議。");
   const id = firstItems(idFacts, 8, "Saat ini potongan basis data belum cukup untuk memberi jawaban rinci, jadi Luna temani kamu merapikan arahan keamanan umum dulu.");

@@ -206,6 +206,7 @@
       <option value="60">60 筆</option>
       <option value="100">100 筆</option>
       <option value="300">300 筆</option>
+      <option value="420">420 筆（含白帶）</option>
     </select>
     <div id="db-active-badge" class="db-badge">📂 <span id="db-badge-text">已載入資料庫</span></div>
     <textarea id="user-input" rows="1" placeholder="詢問婦科健康問題 / Tanya masalah kesehatan wanita 🌸" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
@@ -258,6 +259,7 @@
       <option value="60">60 筆資料庫</option>
       <option value="100">100 筆資料庫</option>
       <option value="300">300 筆資料庫</option>
+      <option value="420">420 筆資料庫（含白帶）</option>
     </select>
     <button class="log-sort-btn active" onclick="setSort('time',this)" id="sort-time">🕐 依時間</button>
     <button class="log-sort-btn" onclick="setSort('db',this)" id="sort-db">📂 依資料庫</button>
@@ -324,7 +326,8 @@ function getConditionLabel() {
     20: '20 筆資料庫',
     60: '60 筆資料庫',
     100: '100 筆資料庫',
-    300: '300 筆資料庫'
+    300: '300 筆資料庫',
+    420: '420 筆資料庫（含白帶）'
   }[ragCondition] || '無資料庫';
 }
 
@@ -467,7 +470,7 @@ function getEntryStage(entry) {
 
 function getCandidateDbEntries() {
   if (!dbEntries.length || ragCondition === 'none') return [];
-  const maxByCondition = { '20': 20, '60': 60, '100': 100, '300': 300 };
+  const maxByCondition = { '20': 20, '60': 60, '100': 100, '300': 300, '420': 420 };
   let candidates = dbEntries.filter(e => {
     const stage = getEntryStage(e);
     if (ragCondition === '20') return stage === '20';
@@ -489,7 +492,7 @@ function retrieveRelevantDbEntries(prompt, topK = 5) {
     if (ragCondition === '20') return stage === '20';
     if (ragCondition === '60') return stage === '60';
     if (ragCondition === '100') return stage !== '120-extra';
-    if (ragCondition === '300') return ['20','60','100','300'].includes(stage);
+    if (ragCondition === '300' || ragCondition === '420') return ['20','60','100','300'].includes(stage);
     return false;
   });
   candidates = candidates.filter(e => entryMatchesPromptTopic(e, topic));
@@ -504,7 +507,7 @@ function retrieveRelevantDbEntries(prompt, topK = 5) {
 }
 
 function buildRetrievedDbContext(prompt) {
-  const topKByCondition = { none: 0, '20': 2, '60': 4, '100': 7, '300': 12 };
+  const topKByCondition = { none: 0, '20': 2, '60': 4, '100': 7, '300': 12, '420': 14 };
   const hits = retrieveRelevantDbEntries(prompt, topKByCondition[ragCondition] || 5);
   const context = hits.map((e, i) => `【${getConditionLabel()}｜RAG-${i + 1}｜score=${e._score}】\n[${e.name}]\n${e.content}`).join('\n\n');
   const sources = hits.map(e => e.name).join(' ; ');
@@ -706,6 +709,7 @@ function setLogFilter(value) {
 function getLogCondition(log) {
   const q = log.question || '';
   if (q.includes('300 筆資料庫')) return '300';
+  if (q.includes('420 筆資料庫')) return '420';
   if (q.includes('100 筆資料庫')) return '100';
   if (q.includes('60 筆資料庫')) return '60';
   if (q.includes('20 筆資料庫')) return '20';
