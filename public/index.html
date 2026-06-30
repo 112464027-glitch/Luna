@@ -103,10 +103,15 @@
   .btn-outline:hover{background:var(--accent-light);}
   .section-title{font-size:13px;font-weight:600;color:var(--text-mid);margin-bottom:8px;}
   .db-list{display:flex;flex-direction:column;gap:8px;}
-  .db-item{background:white;border:1px solid var(--border);border-radius:12px;padding:12px 15px;display:flex;align-items:center;gap:10px;}
+  .db-item{background:white;border:1px solid var(--border);border-radius:12px;padding:12px 15px;display:flex;align-items:flex-start;gap:10px;}
   .db-item-icon{font-size:20px;flex-shrink:0;}
   .db-item-name{font-size:13px;font-weight:600;color:var(--text);flex:1;}
   .db-item-meta{font-size:11px;color:var(--text-muted);}
+  .db-item-content{font-size:11px;color:var(--text-muted);line-height:1.5;margin-top:5px;max-height:72px;overflow:auto;white-space:pre-wrap;background:#fff8fb;border-radius:8px;padding:6px 8px;}
+  .db-item-body{flex:1;min-width:0;}
+  .db-item-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;}
+  .db-item-btn{background:white;border:1px solid var(--border);cursor:pointer;color:var(--text-muted);font-size:11px;padding:4px 7px;border-radius:8px;transition:all 0.2s;}
+  .db-item-btn:hover{background:var(--accent-light);color:var(--accent);border-color:var(--accent-soft);}
   .db-item-del{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;padding:2px 6px;border-radius:8px;transition:all 0.2s;}
   .db-item-del:hover{background:#fde8e8;color:#c62828;}
   .db-empty{text-align:center;padding:24px;color:var(--text-muted);font-size:13px;}
@@ -118,6 +123,7 @@
   .stat-num{font-size:26px;font-weight:700;color:var(--accent);font-family:'Playfair Display',serif;}
   .stat-label{font-size:11px;color:var(--text-muted);margin-top:3px;}
   .log-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .log-filter{background:white;border:1.5px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--text-mid);outline:none;}
   .log-sort-btn{background:white;border:1.5px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;color:var(--text-muted);transition:all 0.2s;}
   .log-sort-btn.active{background:var(--accent-light);border-color:var(--accent);color:var(--accent);font-weight:600;}
   .export-btn{margin-left:auto;}
@@ -129,7 +135,7 @@
   .tag-nodb{background:#f3e5f5;color:#6a1b9a;}
   .log-time{font-size:10px;color:var(--text-muted);margin-left:auto;}
   .log-q{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;}
-  .log-a{font-size:12px;color:var(--text-muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .log-a{font-size:12px;color:var(--text-muted);line-height:1.6;white-space:pre-wrap;overflow:visible;}
   .log-empty{text-align:center;padding:40px;color:var(--text-muted);font-size:13px;}
 
   /* Quick chips */
@@ -235,6 +241,14 @@
     <div class="stat-card"><div class="stat-num" id="stat-no-db">0</div><div class="stat-label">無資料庫</div></div>
   </div>
   <div class="log-controls">
+    <select id="log-filter" class="log-filter" onchange="setLogFilter(this.value)">
+      <option value="all">全部記錄</option>
+      <option value="none">無資料庫</option>
+      <option value="20">20 筆資料庫</option>
+      <option value="60">60 筆資料庫</option>
+      <option value="100">100 筆資料庫</option>
+      <option value="300">300 筆資料庫</option>
+    </select>
     <button class="log-sort-btn active" onclick="setSort('time',this)" id="sort-time">🕐 依時間</button>
     <button class="log-sort-btn" onclick="setSort('db',this)" id="sort-db">📂 依資料庫</button>
     <button class="btn-outline export-btn" onclick="exportCSV()">⬇ 匯出 CSV</button>
@@ -259,6 +273,7 @@ let chatHistory = [];
 let dbEntries = [];
 let expLog = [];
 let sortMode = 'time';
+let logFilter = 'all';
 let ragCondition = 'none';
 
 const LUNA_SVG = `<svg width="34" height="34" viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="22" fill="url(#mg)"/><defs><radialGradient id="mg" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="#ffd6e8"/><stop offset="100%" stop-color="#e8779a"/></radialGradient></defs><ellipse cx="22" cy="18" rx="13" ry="14" fill="#4a2040"/><ellipse cx="22" cy="24" rx="11" ry="12" fill="#fde8d0"/><ellipse cx="22" cy="12" rx="13" ry="7" fill="#4a2040"/><ellipse cx="10" cy="22" rx="3.5" ry="6" fill="#4a2040"/><ellipse cx="34" cy="22" rx="3.5" ry="6" fill="#4a2040"/><ellipse cx="11" cy="24" rx="2.2" ry="2.8" fill="#fcd5b0"/><ellipse cx="33" cy="24" rx="2.2" ry="2.8" fill="#fcd5b0"/><ellipse cx="18" cy="23" rx="2.5" ry="2.8" fill="white"/><ellipse cx="26" cy="23" rx="2.5" ry="2.8" fill="white"/><circle cx="18.6" cy="23.4" r="1.6" fill="#3d1a2e"/><circle cx="26.6" cy="23.4" r="1.6" fill="#3d1a2e"/><circle cx="19.2" cy="22.6" r="0.6" fill="white"/><circle cx="27.2" cy="22.6" r="0.6" fill="white"/><ellipse cx="14.5" cy="26.5" rx="3" ry="1.8" fill="#f48fb1" opacity="0.45"/><ellipse cx="29.5" cy="26.5" rx="3" ry="1.8" fill="#f48fb1" opacity="0.45"/><path d="M18.5 30 Q22 33 25.5 30" stroke="#d6637a" stroke-width="1.2" fill="none" stroke-linecap="round"/><circle cx="29" cy="13" r="3" fill="#ff6fa8" opacity="0.9"/><circle cx="29" cy="13" r="1.5" fill="#ffd6e8"/></svg>`;
@@ -573,6 +588,30 @@ async function deleteDbEntry(id) {
   if (error) { alert('刪除失敗：'+error.message); return; }
   dbEntries=dbEntries.filter(e=>e.id!==id); renderDb(); updateDbBadge();
 }
+async function renameDbEntry(id) {
+  const item = dbEntries.find(e=>e.id===id);
+  if (!item) return;
+  const nextName = prompt('請輸入新的資料名稱', item.name || '');
+  if (nextName === null) return;
+  const name = nextName.trim();
+  if (!name) return alert('名稱不能空白');
+  const {data, error} = await sb.from('db_entries').update({name}).eq('id',id).select().single();
+  if (error) { alert('改名失敗：'+error.message); return; }
+  dbEntries = dbEntries.map(e=>e.id===id ? data : e);
+  renderDb(); updateDbBadge();
+}
+async function editDbEntryContent(id) {
+  const item = dbEntries.find(e=>e.id===id);
+  if (!item) return;
+  const nextContent = prompt('請修改資料內容', item.content || '');
+  if (nextContent === null) return;
+  const content = nextContent.trim();
+  if (!content) return alert('內容不能空白');
+  const {data, error} = await sb.from('db_entries').update({content}).eq('id',id).select().single();
+  if (error) { alert('修改失敗：'+error.message); return; }
+  dbEntries = dbEntries.map(e=>e.id===id ? data : e);
+  renderDb(); updateDbBadge();
+}
 async function clearAllDb() {
   if (!dbEntries.length) return;
   if (!confirm('確定清除所有資料庫內容？（所有裝置都會消失）')) return;
@@ -584,7 +623,7 @@ function renderDb() {
   document.getElementById('db-count').textContent=dbEntries.length;
   const list=document.getElementById('db-list');
   if (!dbEntries.length) { list.innerHTML='<div class="db-empty">尚無資料，上傳檔案或輸入文字後所有裝置都能看到</div>'; return; }
-  list.innerHTML=dbEntries.map(e=>`<div class="db-item"><div class="db-item-icon">${e.icon||'📄'}</div><div><div class="db-item-name">${escHtml(e.name)}</div><div class="db-item-meta">${(e.content||'').length.toLocaleString()} 字元</div></div><button class="db-item-del" onclick="deleteDbEntry(${e.id})">✕</button></div>`).join('');
+  list.innerHTML=dbEntries.map(e=>`<div class="db-item"><div class="db-item-icon">${e.icon||'📄'}</div><div class="db-item-body"><div class="db-item-name">${escHtml(e.name)}</div><div class="db-item-meta">${(e.content||'').length.toLocaleString()} 字元</div><div class="db-item-content">${escHtml(e.content||'')}</div></div><div class="db-item-actions"><button class="db-item-btn" onclick="renameDbEntry(${e.id})">改名</button><button class="db-item-btn" onclick="editDbEntryContent(${e.id})">修改</button><button class="db-item-del" onclick="deleteDbEntry(${e.id})">✕</button></div></div>`).join('');
 }
 function updateDbBadge() {
   const badge=document.getElementById('db-active-badge'), text=document.getElementById('db-badge-text');
@@ -614,12 +653,27 @@ function setSort(mode,btn) {
   document.querySelectorAll('.log-sort-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active'); renderLog();
 }
+function setLogFilter(value) {
+  logFilter = value;
+  renderLog();
+}
+function getLogCondition(log) {
+  const q = log.question || '';
+  if (q.includes('300 筆資料庫')) return '300';
+  if (q.includes('100 筆資料庫')) return '100';
+  if (q.includes('60 筆資料庫')) return '60';
+  if (q.includes('20 筆資料庫')) return '20';
+  if (q.includes('無資料庫')) return 'none';
+  return log.hasDb ? 'db' : 'none';
+}
 function renderLog() {
   const list=document.getElementById('log-list');
   if (!expLog.length) { list.innerHTML='<div class="log-empty">尚無記錄，開始聊天後會自動記錄 🌸</div>'; return; }
   let logs=[...expLog];
+  if (logFilter !== 'all') logs = logs.filter(l=>getLogCondition(l)===logFilter);
+  if (!logs.length) { list.innerHTML='<div class="log-empty">此篩選條件目前沒有記錄</div>'; return; }
   if (sortMode==='db') logs.sort((a,b)=>b.hasDb-a.hasDb);
-  list.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-item-header"><span class="log-tag ${l.hasDb?'tag-db':'tag-nodb'}">${l.hasDb?'📂 有資料庫':'💬 無資料庫'}</span><span class="log-time">${l.time}</span></div><div class="log-q">Q: ${escHtml(l.question)}</div><div class="log-a">${escHtml(l.answer.replace(/\n---\n/g,' | '))}</div></div>`).join('');
+  list.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-item-header"><span class="log-tag ${l.hasDb?'tag-db':'tag-nodb'}">${l.hasDb?'📂 有資料庫':'💬 無資料庫'}</span><span class="log-time">${l.time}</span></div><div class="log-q">Q: ${escHtml(l.question)}</div><div class="log-a">${escHtml(l.answer)}</div></div>`).join('');
 }
 function exportCSV() {
   if (!expLog.length) return alert('尚無記錄可匯出');
