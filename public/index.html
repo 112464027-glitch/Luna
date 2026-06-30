@@ -484,7 +484,14 @@ function getCandidateDbEntries() {
 
 function retrieveRelevantDbEntries(prompt, topK = 5) {
   const topic = detectPromptTopic(prompt);
-  let candidates = getCandidateDbEntries();
+  let candidates = dbEntries.filter(e => {
+    const stage = getEntryStage(e);
+    if (ragCondition === '20') return stage === '20';
+    if (ragCondition === '60') return stage === '60';
+    if (ragCondition === '100') return stage !== '120-extra';
+    if (ragCondition === '300') return ['20','60','100','300'].includes(stage);
+    return false;
+  });
   candidates = candidates.filter(e => entryMatchesPromptTopic(e, topic));
   if (!candidates.length) return [];
   const promptTokens = tokenize(prompt);
