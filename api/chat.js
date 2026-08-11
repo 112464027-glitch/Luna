@@ -132,6 +132,56 @@ Yang paling mengganggu sekarang apakah ① haid tidak teratur atau belum datang,
 Sumber yang dipakai: belum memakai potongan khusus karena pertanyaannya masih perlu diperjelas.`;
 }
 
+function parseEvidenceContext(dbContext = "") {
+  return String(dbContext)
+    .split(/(?=【證據\s+\d+】)/)
+    .map((block) => {
+      const field = (name) => block.match(new RegExp(`(?:^|\\n)${name}:\\s*([^\\n]+)`, "i"))?.[1]?.trim() || "";
+      return {
+        chunkId: field("chunk_id"),
+        answerZh: field("answer_zh"),
+        answerId: field("answer_id"),
+        redFlags: field("red_flags"),
+      };
+    })
+    .filter((item) => item.chunkId && item.answerZh && item.answerId)
+    .filter((item, index, items) => items.findIndex((other) => other.answerZh === item.answerZh) === index)
+    .slice(0, 2);
+}
+
+function buildControlledRagReply(dbContext = "", retrievedSources = "") {
+  const evidence = parseEvidenceContext(dbContext);
+  if (!evidence.length) return "";
+  const zhFacts = evidence.map((item, index) => `${index + 1}. ${item.answerZh}`).join("\n");
+  const idFacts = evidence.map((item, index) => `${index + 1}. ${item.answerId}`).join("\n");
+  const warning = evidence.find((item) => item.redFlags)?.redFlags || "";
+  const sources = evidence.map((item) => item.chunkId).join("、") || retrievedSources;
+
+  return `月經或婦科狀況可能讓人感到擔心或不確定，這樣的感受可以理解。我們先一步一步整理：以下只呈現本次檢索到、與問題最相關的兩項資料，不代表妳患有其中任何疾病。
+
+【資料庫重點】
+${zhFacts}
+${warning ? `\n【需要注意】\n${warning}` : ""}
+
+如果一時不知道從哪裡開始也沒關係，可以先記錄月經週期與伴隨症狀，再把上述重點帶去婦產科詢問。我們先把資訊整理清楚，讓妳看診時比較容易表達。
+
+看診時可以問：「這些資料中哪些可能與我的情況相關，還需要評估哪些原因？」
+
+本次使用來源：${sources}
+---
+Keluhan haid atau kesehatan kewanitaan bisa membuat seseorang merasa khawatir atau tidak pasti, dan perasaan itu dapat dipahami. Kita rapikan pelan-pelan: berikut ini hanya dua informasi yang paling relevan dari hasil pencarian basis data. Ini tidak berarti kamu mengalami salah satu kondisi tersebut.
+
+【Poin dari basis data】
+${idFacts}
+${warning ? "\n【Hal yang perlu diperhatikan】\nJika keluhan menetap, memburuk, atau disertai tanda bahaya yang disebutkan pada informasi di atas, sebaiknya periksa ke dokter kandungan." : ""}
+
+Kalau belum tahu harus mulai dari mana, tidak apa-apa. Kamu bisa mencatat pola haid dan gejala yang menyertai, lalu membawa poin di atas saat berkonsultasi dengan dokter kandungan. Kita rapikan informasinya dulu agar kamu lebih mudah menjelaskannya saat periksa.
+
+Saat periksa, kamu bisa bertanya: “Dari informasi ini, mana yang mungkin berkaitan dengan kondisi saya, dan penyebab apa lagi yang perlu dinilai?”
+
+Sumber yang dipakai: ${sources}`;
+}
+
 function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition = "420 筆資料庫") {
   const dbSection = dbContext
     ? `\n\n【本次檢索到的婦科知識片段】\n以下不是完整資料庫，而是系統依使用者問題挑出的 top-k 片段。你必須優先根據這些片段回答；若片段不足，請明確說資料不足，不要假裝知道。\n\n${dbContext}\n\n【本次命中來源】\n${retrievedSources || "未提供"}\n`
@@ -393,6 +443,13 @@ module.exports = async (req, res) => {
   }
   if (needsClarification === true && queryIntent === "menstruation") {
     return res.status(200).json({ reply: ensureSafetyBoundary(buildClarificationReply()), clarification: true });
+  }
+  if (normalizeRagLevel(ragCondition) !== "none") {
+    const controlledReply = buildControlledRagReply(dbContext, retrievedSources);
+    if (!controlledReply) {
+      return res.status(503).json({ error: "檢索片段格式不完整，這一輪不會產生醫療回答，也不會寫入實驗紀錄；請重新送出。" });
+    }
+    return res.status(200).json({ reply: ensureSafetyBoundary(controlledReply), controlledRag: true });
   }
 
   try {
