@@ -420,6 +420,8 @@ function normalizeImportedRows(fileName, text) {
 function scoreEntry(promptText, promptTokens, entry) {
   const text = `${entry.name || ''}\n${entry.content || ''}`;
   const entryTokens = new Set(tokenize(text));
+  const normalizedPrompt = normalizeText(promptText);
+  const type = getEntryField(entry, 'type');
   let score = 0;
   for (const tok of promptTokens) {
     if (entryTokens.has(tok)) score += tok.length >= 5 ? 3 : 1;
@@ -427,6 +429,15 @@ function scoreEntry(promptText, promptTokens, entry) {
   }
   const redWords = ['darah','perdarahan','pingsan','demam','hamil','nyeri','sakit','gatal','bau','keputihan','出血','暈','發燒','懷孕','劇痛','搔癢','異味'];
   if (redWords.some(w => normalizeText(promptText).includes(w)) && /red_flags|tanda bahaya|立即就醫|警訊/i.test(entry.content || '')) score += 4;
+  if (/診斷|標準|criteria|kriteria/.test(normalizedPrompt) && /診斷標準|定義/.test(type)) score += 10;
+  if (/怎麼辦|如何|緩解|改善|處理|atasi|mengurangi|apa yang harus/.test(normalizedPrompt) && /治療原則|臨床評估|醫師評估|清潔與自我照護/.test(type)) score += 8;
+  if (/不規律|不規則|沒來|遲來|tidak teratur|telat|tidak haid/.test(normalizedPrompt) && /常見症狀|臨床評估|需要排除的原因|定義/.test(type)) score += 7;
+  if (/異味|臭|魚腥|bau|amis|odor/.test(normalizedPrompt) && /細菌性陰道炎|需要就醫警訊|醫師評估/.test(type)) score += 10;
+  if (/搔癢|癢|gatal/.test(normalizedPrompt) && /念珠菌感染|需要就醫警訊|醫師評估/.test(type)) score += 10;
+  if (/問醫師|看診|就醫準備|tanya dokter|persiapan/.test(normalizedPrompt) && /醫病溝通問法|醫師評估|臨床評估/.test(type)) score += 8;
+  if (/20-doc/.test(entry.name || '')) score += 1;
+  if (!/問醫師|看診|就醫準備|tanya dokter|persiapan/.test(normalizedPrompt) && /醫病溝通問法/.test(type)) score -= 3;
+  if (!/生育|懷孕|長期|kesuburan|hamil/.test(normalizedPrompt) && /生育與長期影響/.test(type)) score -= 3;
   return score;
 }
 
@@ -434,17 +445,40 @@ function detectPromptTopic(promptText) {
   const text = normalizeText(promptText);
   if (/分泌物|白帶|陰道分泌|keputihan|cairan vagina|vagina discharge|gatal|搔癢|癢|bau|異味|odor|黴菌|霉菌|細菌性陰道炎|bv/.test(text)) return 'discharge';
   if (/痛經|經痛|nyeri haid|dismenore|haid sakit|腹痛/.test(text)) return 'dysmenorrhea';
-  if (/月經|經期|閉經|menstruasi|haid|amenore/.test(text)) return 'menstruation';
   if (/pcos|多囊|polikistik|rotterdam/.test(text)) return 'pcos';
   if (/更年期|停經|menopause|hot flash|熱潮紅/.test(text)) return 'menopause';
   if (/pid|骨盆腔發炎|radang panggul/.test(text)) return 'pid';
   if (/囊腫|kista|cyst/.test(text)) return 'cyst';
   if (/卵巢早衰|poi|ovarium primer|premature ovarian/.test(text)) return 'poi';
+  if (/月經不規則|月經不規律|經期不規則|經期不規律|月經沒來|月經遲來|無月經|haid tidak teratur|telat haid|tidak haid/.test(text)) return 'irregular_menses';
+  if (/月經|經期|閉經|menstruasi|haid|amenore/.test(text)) return 'menstruation';
   return 'general';
+}
+
+function needsPromptClarification(promptText) {
+  const text = normalizeText(promptText).replace(/[？?！!。，,、\s]/g, '');
+  return /^(月經|經期|月經問題|想問月經|我想問月經|haid|menstruasi|soalhaid)$/.test(text);
+}
+
+function getEntryTopicGroup(entry) {
+  return (String(entry.name || '').match(/^(Q[1-7])-/i)?.[1] || '').toUpperCase();
 }
 
 function entryMatchesPromptTopic(entry, topic) {
   if (topic === 'general') return true;
+  const group = getEntryTopicGroup(entry);
+  const topicGroups = {
+    discharge: ['Q7'],
+    dysmenorrhea: ['Q1'],
+    cyst: ['Q2'],
+    pcos: ['Q3'],
+    menopause: ['Q4'],
+    pid: ['Q5'],
+    poi: ['Q6'],
+    irregular_menses: ['Q3', 'Q6'],
+    menstruation: ['Q1', 'Q3', 'Q4', 'Q6']
+  };
+  if (topicGroups[topic]) return topicGroups[topic].includes(group);
   const text = normalizeText(`${entry.name || ''}\n${entry.content || ''}`);
   const patterns = {
     discharge: /分泌物|白帶|陰道分泌|keputihan|cairan vagina|gatal|搔癢|癢|bau|異味|odor|黴菌|霉菌|細菌性陰道炎|bv|trikomoniasis|vaginitis/,
@@ -457,6 +491,77 @@ function entryMatchesPromptTopic(entry, topic) {
     poi: /卵巢早衰|poi|primary ovarian insufficiency|premature ovarian/
   };
   return patterns[topic]?.test(text) || false;
+}
+
+function getEntryField(entry, field) {
+  const match = String(entry.content || '').match(new RegExp(`(?:^|\\n)${field}:\\s*([^\\n]+)`, 'i'));
+  return match?.[1]?.trim() || '';
+}
+
+function cleanEvidenceText(text) {
+  return String(text || '')
+    .replace(/^深度回答素材｜[^：]+：\s*/g, '')
+    .replace(/若使用者描述與警訊相符，Luna\s*應清楚說[：:]\s*/g, '')
+    .replace(/可用的醫病溝通句[：:].*$/g, '')
+    .replace(/請優先回答使用者問的核心定義.*$/g, '')
+    .replace(/對使用者要加上一句[：:].*$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getEvidenceSignature(entry) {
+  return normalizeText(cleanEvidenceText(getEntryField(entry, 'answer_zh'))).slice(0, 100);
+}
+
+function isMedicalEvidenceEntry(entry) {
+  const type = getEntryField(entry, 'type');
+  return !/Luna 回答邊界|印尼語自然說法/.test(type);
+}
+
+function selectDiverseEntries(entries, topK, topic) {
+  const selected = [];
+  const signatures = new Set();
+  const typeCounts = new Map();
+  const groupCounts = new Map();
+  const broadTopic = topic === 'menstruation' || topic === 'irregular_menses' || topic === 'general';
+
+  for (const entry of entries) {
+    if (!isMedicalEvidenceEntry(entry)) continue;
+    const signature = getEvidenceSignature(entry) || entry.name;
+    const type = getEntryField(entry, 'type') || '未分類';
+    const group = getEntryTopicGroup(entry) || 'other';
+    if (signatures.has(signature)) continue;
+    if ((typeCounts.get(type) || 0) >= 1) continue;
+    if (broadTopic && (groupCounts.get(group) || 0) >= 1) continue;
+    selected.push(entry);
+    signatures.add(signature);
+    typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
+    groupCounts.set(group, (groupCounts.get(group) || 0) + 1);
+    if (selected.length >= topK) return selected;
+  }
+
+  for (const entry of entries) {
+    if (!isMedicalEvidenceEntry(entry) || selected.some(e => e.id === entry.id)) continue;
+    const signature = getEvidenceSignature(entry) || entry.name;
+    if (signatures.has(signature)) continue;
+    selected.push(entry);
+    signatures.add(signature);
+    if (selected.length >= topK) break;
+  }
+  return selected;
+}
+
+function formatEvidenceEntry(entry, index) {
+  const fields = {
+    chunk_id: getEntryField(entry, 'chunk_id') || entry.name,
+    title: getEntryField(entry, 'title') || entry.name,
+    type: getEntryField(entry, 'type'),
+    answer_zh: cleanEvidenceText(getEntryField(entry, 'answer_zh')),
+    answer_id: cleanEvidenceText(getEntryField(entry, 'answer_id')),
+    red_flags: cleanEvidenceText(getEntryField(entry, 'red_flags')),
+    source_url: getEntryField(entry, 'source_url')
+  };
+  return [`【證據 ${index + 1}】`, ...Object.entries(fields).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`)].join('\n');
 }
 
 function getEntryStage(entry) {
@@ -506,18 +611,16 @@ function retrieveRelevantDbEntries(prompt, topK = 5) {
   const promptTokens = tokenize(prompt);
   const ranked = candidates
     .map(e => ({ ...e, _score: scoreEntry(prompt, promptTokens, e) }))
-    .filter(e => e._score > 0)
-    .sort((a, b) => b._score - a._score)
-    .slice(0, topK);
-  return ranked.length ? ranked : candidates.slice(0, Math.min(topK, candidates.length)).map(e => ({ ...e, _score: 0 }));
+    .sort((a, b) => b._score - a._score);
+  return selectDiverseEntries(ranked, topK, topic);
 }
 
 function buildRetrievedDbContext(prompt) {
-  const topKByCondition = { none: 0, '20': 2, '60': 4, '100': 7, '300': 12, '420': 14 };
+  const topKByCondition = { none: 0, '20': 2, '60': 3, '100': 3, '300': 3, '420': 3 };
   const hits = retrieveRelevantDbEntries(prompt, topKByCondition[ragCondition] || 5);
-  const context = hits.map((e, i) => `【${getConditionLabel()}｜RAG-${i + 1}｜score=${e._score}】\n[${e.name}]\n${e.content}`).join('\n\n');
-  const sources = hits.map(e => e.name).join(' ; ');
-  return { context, hits, sources, condition: ragCondition, conditionLabel: getConditionLabel() };
+  const context = hits.map(formatEvidenceEntry).join('\n\n');
+  const sources = hits.map(e => getEntryField(e, 'chunk_id') || e.name).join(' ; ');
+  return { context, hits, sources, condition: ragCondition, conditionLabel: getConditionLabel(), intent: detectPromptTopic(prompt), needsClarification: needsPromptClarification(prompt) };
 }
 
 // ══════════════════════════════════════════════
@@ -573,7 +676,7 @@ async function sendMessage() {
   try {
     const res = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({prompt, history:chatHistory.slice(-12), dbContext, retrievedSources: rag.sources, ragCondition: rag.conditionLabel})
+      body: JSON.stringify({prompt, history:chatHistory.slice(-12), dbContext, retrievedSources: rag.sources, ragCondition: rag.conditionLabel, queryIntent: rag.intent, needsClarification: rag.needsClarification})
     });
     removeTyping();
     if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'伺服器錯誤'); }
