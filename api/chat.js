@@ -154,6 +154,7 @@ function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition =
 4. 先判斷有無紅旗警訊：大量出血、暈厥、劇烈疼痛、高燒、懷孕合併出血或疼痛、呼吸困難、症狀快速惡化。若有，先建議儘快就醫或急診。
 
 【情緒支持型語氣操弄規則】
+- 最低操弄強度：每一則完整回覆至少包含「具體情緒辨識」「感受接納」，以及「降低自責／羞恥」或「有限度陪伴」其中一項；不能只用溫柔詞彙或一般禮貌代替。
 - 情緒辨識與承認：只根據使用者已說出的內容或明確情境線索回應擔心、尷尬或不安；使用「聽起來……讓妳感到……」等試探性說法，不可武斷宣稱「我完全懂」或推測未表達的強烈情緒。
 - 感受接納與去羞恥：可說「這樣的擔心是可以理解的」「妳不需要因為不好意思或不知道怎麼表達而責怪自己」。除非檢索來源直接支持，不使用「很多人都會這樣」等盛行率式正常化說法。
 - 同理與觀點回應：把情緒連回具體處境，例如婦科不舒服、語言表達困難或擔心被誤解可能使人緊張；不要只使用空泛的安慰詞。
@@ -165,6 +166,7 @@ function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition =
 - 可以自然使用「Mbak」「pelan-pelan ya」，但避免「sayang」、過度親密及暗示長期陪伴或情感依賴的說法。
 - 排除標準：不要只靠禮貌用語、表情符號或稱讚；不要以情緒支持淡化醫療風險；不要像 A 組那樣強調「你可以選擇」「你有權決定」「依自己的狀況判斷」等自主支持語句。
 - 回答要像聊天：短句、溫暖、先安撫，再慢慢整理；但仍要包含與 A 組相同的紅旗警訊、醫療資訊與下一步。
+- 情緒支持線索須分布在開場與就醫準備段，不能只在第一句短暫出現後完全回到中性說明。
 
 【固定回答骨架：兩組共用；只改語氣】
 每次回答請盡量使用下列相同順序，確保與自主支持型版本內容等值：
@@ -223,6 +225,36 @@ ${text}
   const repaired = await model.generateContent(repairPrompt);
   const repairedText = repaired.response.text();
   return isBilingualReply(repairedText) ? repairedText : `${text.trim()}\n---\nMaaf ya, format Bahasa Indonesia belum berhasil dibuat. Coba kirim ulang pertanyaannya pelan-pelan. Luna bukan dokter dan tidak bisa memberi diagnosis atau obat.`;
+}
+
+function hasEmotionMarkers(text) {
+  const zh = String(text || "").split(/\r?\n---\r?\n|---/)[0] || "";
+  const hasRecognition = /聽起來|看起來|讓妳感到|讓你感到|可能讓妳|可能讓你/.test(zh);
+  const hasAcceptance = /可以理解|很自然|是合理的|受到重視|不用否定自己的感受/.test(zh);
+  const hasSupport = /不需要.{0,18}(責怪|自責|羞恥)|一步一步|慢慢整理|一起整理/.test(zh);
+  return hasRecognition && hasAcceptance && hasSupport;
+}
+
+async function ensureEmotionStrategy(text, model) {
+  if (hasEmotionMarkers(text)) return text;
+  const repairPrompt = `
+請只改寫下列回覆的支持性語用方式，不可新增、刪除或改變任何醫療資訊、紅旗警訊、來源、問題順序與安全建議，也不可改變中印雙語結構或明顯增加字數。
+
+改寫後的繁體中文段必須同時包含：
+1. 根據使用者已表達內容所做的具體情緒辨識，例如「聽起來……讓妳感到緊張」。
+2. 一句感受接納，例如「這樣的擔心是可以理解的」。
+3. 一句降低自責或羞恥，或一句具有界線的協助，例如「妳不需要……責怪自己」或「我們可以一步一步整理」。
+4. 情緒支持線索需出現在開場及就醫準備段，不得只在第一句出現。
+5. 不強調個人選擇權、決策空間或提供多個選項；不得保證安全、過度擬人化或暗示依賴。
+
+印尼文段需以自然Bahasa Indonesia呈現相同情緒支持策略與完全相同的醫療內容。只輸出完成後的雙語回覆。
+
+原回覆：
+${text}
+`.trim();
+  const repaired = await model.generateContent(repairPrompt);
+  const repairedText = repaired.response.text();
+  return hasEmotionMarkers(repairedText) ? repairedText : text;
 }
 
 function ensureSafetyBoundary(text) {
@@ -324,7 +356,9 @@ module.exports = async (req, res) => {
     });
 
     const result = await chat.sendMessage(prompt.trim());
-    const text = ensureSafetyBoundary(await ensureBilingualReply(result.response.text(), model));
+    const bilingual = await ensureBilingualReply(result.response.text(), model);
+    const styled = await ensureEmotionStrategy(bilingual, model);
+    const text = ensureSafetyBoundary(await ensureBilingualReply(styled, model));
 
     return res.status(200).json({ reply: text });
   } catch (err) {
