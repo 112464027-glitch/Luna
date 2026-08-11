@@ -163,8 +163,24 @@ async function buildGroundedContentPlan(prompt, dbContext, queryIntent, answerGo
     systemInstruction: `你是婦科就醫準備 RAG 的內容規劃器。你只產生中立的醫療內容，不加入自主支持或情緒支持語氣。所有醫療說法與行動建議都必須能由提供的證據直接支持；不能因關鍵字相近就把某疾病當成使用者的狀況。若證據無法直接回答，必須標記 insufficient=true 並提出一個具體澄清問題，禁止用不相關資料硬湊。`,
     generationConfig: {
       temperature: 0,
-      maxOutputTokens: 900,
+      maxOutputTokens: 1800,
       responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          insufficient: { type: "BOOLEAN" },
+          direct_zh: { type: "STRING" },
+          direct_id: { type: "STRING" },
+          actions_zh: { type: "ARRAY", items: { type: "STRING" } },
+          actions_id: { type: "ARRAY", items: { type: "STRING" } },
+          warning_zh: { type: "STRING" },
+          warning_id: { type: "STRING" },
+          question_zh: { type: "STRING" },
+          question_id: { type: "STRING" },
+          sources: { type: "ARRAY", items: { type: "STRING" } },
+        },
+        required: ["insufficient", "direct_zh", "direct_id", "actions_zh", "actions_id", "warning_zh", "warning_id", "question_zh", "question_id", "sources"],
+      },
     },
   });
 
