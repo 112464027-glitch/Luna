@@ -119,15 +119,19 @@ function buildExperimentAnswerContract() {
 }
 
 function buildClarificationReply() {
-  return `問題重點：只提到「月經」時，可能一時不知道該從哪個部分說起；這樣的情況可以理解，我們可以一步一步整理。
+  return `問題重點：妳問「月經怎麼辦」，但月經問題可能是週期不規律、經痛、出血量改變或月經沒來；一時不知道怎麼描述是可以理解的，我們可以一步一步整理。
 
-妳現在比較在意的是：①月經不規律或沒來、②經痛、③經血量或非經期出血，還是④其他不舒服？也可以先告訴 Luna 持續多久，以及是否有劇烈疼痛、大量出血、暈厥或可能懷孕。妳不需要一次說得很完整，我們先把最困擾的部分整理清楚；若有上述警訊，仍需要儘快就醫。
+現在不用一次說得很完整，可以先記錄最近一次月經日期、平常週期、本次疼痛或出血變化，以及是否可能懷孕。我們先把最明顯的變化整理出來。
+
+妳現在比較在意的是：①月經不規律或沒來、②經痛、③經血量很多或非經期出血，還是④分泌物或其他不舒服？若有劇烈疼痛、大量出血、暈厥，或可能懷孕且出血，建議儘快就醫。
 
 本次使用來源：尚未使用特定資料片段，等待問題釐清。
 ---
-Intinya: kalau baru menyebut soal haid, kadang memang bingung harus mulai dari mana. Itu bisa dimengerti; kita rapikan pelan-pelan.
+Intinya: kamu bertanya harus bagaimana soal haid, tetapi masalahnya bisa berupa haid tidak teratur, nyeri haid, perubahan jumlah darah, atau haid yang belum datang. Wajar kalau belum tahu cara menjelaskannya; kita bisa merapikannya pelan-pelan.
 
-Yang paling mengganggu sekarang apakah ① haid tidak teratur atau belum datang, ② nyeri haid, ③ darah terlalu banyak atau perdarahan di luar haid, atau ④ keluhan lain? Kamu juga boleh mulai dengan cerita sudah berapa lama dan apakah ada nyeri hebat, perdarahan banyak, pingsan, atau kemungkinan hamil. Nggak perlu langsung lengkap; kita mulai dari bagian yang paling mengganggu. Kalau ada tanda bahaya tadi, kamu tetap perlu segera periksa.
+Tidak perlu menjelaskan semuanya sekaligus. Kamu bisa mulai dengan mencatat tanggal haid terakhir, pola haid biasanya, perubahan nyeri atau perdarahan kali ini, dan apakah mungkin hamil. Kita rapikan dulu perubahan yang paling terlihat.
+
+Saat ini kamu paling khawatir tentang yang mana: ① haid tidak teratur atau belum datang, ② nyeri haid, ③ darah sangat banyak atau perdarahan di luar haid, atau ④ keputihan maupun keluhan lain? Jika ada nyeri hebat, perdarahan banyak, pingsan, atau kemungkinan hamil disertai perdarahan, sebaiknya segera periksa.
 
 Sumber yang dipakai: belum memakai potongan khusus karena pertanyaannya masih perlu diperjelas.`;
 }
@@ -149,13 +153,131 @@ function parseEvidenceContext(dbContext = "") {
     .slice(0, 2);
 }
 
-function buildControlledRagReply(dbContext = "", retrievedSources = "") {
+async function buildGroundedContentPlan(prompt, dbContext, queryIntent, answerGoal) {
+  const evidence = parseEvidenceContext(dbContext);
+  const allowedSources = evidence.map((item) => item.chunkId);
+  if (!allowedSources.length) throw new Error("No valid RAG evidence");
+
+  const planner = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    systemInstruction: `你是婦科就醫準備 RAG 的內容規劃器。你只產生中立的醫療內容，不加入自主支持或情緒支持語氣。所有醫療說法與行動建議都必須能由提供的證據直接支持；不能因關鍵字相近就把某疾病當成使用者的狀況。若證據無法直接回答，必須標記 insufficient=true 並提出一個具體澄清問題，禁止用不相關資料硬湊。`,
+    generationConfig: {
+      temperature: 0,
+      maxOutputTokens: 900,
+      responseMimeType: "application/json",
+    },
+  });
+
+  const planningPrompt = `使用者問題：${prompt}
+問題主題：${queryIntent}
+回答目的：${answerGoal}
+
+RAG 證據：
+${dbContext}
+
+只輸出 JSON，格式如下：
+{
+  "insufficient": false,
+  "direct_zh": "先直接回答使用者真正問的問題，1至2句",
+  "direct_id": "與中文相同意思的自然印尼文",
+  "actions_zh": ["最多3項具體、可執行且由證據支持的下一步"],
+  "actions_id": ["與中文逐項相同意思的自然印尼文"],
+  "warning_zh": "最多2項相關警訊；沒有則空字串",
+  "warning_id": "與中文相同意思的自然印尼文；沒有則空字串",
+  "question_zh": "一個有助就醫準備或釐清問題的問題",
+  "question_id": "與中文相同意思的自然印尼文",
+  "sources": ["只列實際使用的 chunk_id"]
+}
+
+規則：
+1. 「怎麼辦」必須先給可執行的處理或就醫準備步驟，不能只解釋定義。
+2. 不診斷使用者，不把 PCOS、POI 或其他疾病當成既定答案。
+3. 若證據只支持評估方向、不支持治療，就明確說需要哪些資訊或醫療評估，不得虛構治療。
+4. sources 只能從 ${allowedSources.join("、")} 選擇。
+5. 不輸出資料庫內部指令或與問題無關的疾病知識。`;
+
+  const result = await planner.generateContent(planningPrompt);
+  const raw = result.response.text().replace(/^```json\s*|\s*```$/g, "").trim();
+  const plan = JSON.parse(raw);
+  const usedSources = Array.isArray(plan.sources) ? plan.sources.filter((id) => allowedSources.includes(id)) : [];
+  const actionsZh = Array.isArray(plan.actions_zh) ? plan.actions_zh.filter(Boolean).slice(0, 3) : [];
+  const actionsId = Array.isArray(plan.actions_id) ? plan.actions_id.filter(Boolean).slice(0, 3) : [];
+  if (!plan.direct_zh || !plan.direct_id || !plan.question_zh || !plan.question_id) throw new Error("Incomplete grounded plan");
+  if (actionsZh.length !== actionsId.length) throw new Error("Bilingual action mismatch");
+  if (!plan.insufficient && !usedSources.length) throw new Error("Grounded plan has no valid source");
+  return { ...plan, actions_zh: actionsZh, actions_id: actionsId, sources: usedSources };
+}
+
+function renderGroundedPlan(plan) {
+  const zhActions = plan.actions_zh.length ? plan.actions_zh.map((item, index) => `${index + 1}. ${item}`).join("\n") : "目前證據不足，我們先從下方問題一步一步釐清。";
+  const idActions = plan.actions_id.length ? plan.actions_id.map((item, index) => `${index + 1}. ${item}`).join("\n") : "Buktinya belum cukup; kita perjelas dulu lewat pertanyaan di bawah ini.";
+  const sources = plan.sources.length ? plan.sources.join("、") : "尚未使用特定片段，等待問題釐清";
+  return `不知道婦科或月經問題該怎麼處理時，可能會讓人擔心；這樣的感受可以理解。我們先一步一步整理直接答案、現在能做的事與需要注意的情況。
+
+【直接回答】
+${plan.direct_zh}
+
+【現在可以做】
+${zhActions}
+${plan.warning_zh ? `\n【需要儘快就醫的情況】\n${plan.warning_zh}` : ""}
+
+【下一個重要問題】
+${plan.question_zh}
+
+本次使用來源：${sources}
+---
+Kalau belum tahu harus bagaimana menghadapi masalah haid atau kesehatan kewanitaan, kamu mungkin merasa khawatir, dan perasaan itu dapat dipahami. Kita rapikan pelan-pelan: jawaban langsung, hal yang bisa dilakukan sekarang, dan kondisi yang perlu diperhatikan.
+
+【Jawaban langsung】
+${plan.direct_id}
+
+【Yang bisa dilakukan sekarang】
+${idActions}
+${plan.warning_id ? `\n【Kapan perlu segera periksa】\n${plan.warning_id}` : ""}
+
+【Pertanyaan penting berikutnya】
+${plan.question_id}
+
+Sumber yang dipakai: ${sources}`;
+}
+
+function buildControlledRagReply(dbContext = "", retrievedSources = "", answerGoal = "information") {
   const evidence = parseEvidenceContext(dbContext);
   if (!evidence.length) return "";
   const zhFacts = evidence.map((item, index) => `${index + 1}. ${item.answerZh}`).join("\n");
   const idFacts = evidence.map((item, index) => `${index + 1}. ${item.answerId}`).join("\n");
   const warning = evidence.find((item) => item.redFlags)?.redFlags || "";
   const sources = evidence.map((item) => item.chunkId).join("、") || retrievedSources;
+
+  if (answerGoal === "action") {
+    return `婦科或月經狀況不知道該怎麼處理時，可能會讓人擔心；這樣的感受可以理解。我們先從現在能做的事情一步一步整理，資料庫內容只作為評估方向，不代表診斷。
+
+【現在可以做】
+1. 先記錄症狀開始時間、月經週期或發作頻率、嚴重程度，以及同時出現的疼痛、出血或分泌物變化。
+2. 如果不知道下一步也沒關係，可以帶著紀錄諮詢婦產科；若症狀持續、加劇或符合下列警訊，則不要延後就醫。
+${warning ? `\n【需要注意】\n${warning}` : ""}
+
+【資料庫提供的相關評估方向】
+${zhFacts}
+
+看診時可以問：「依我的症狀紀錄，目前最需要評估什麼原因？」
+
+本次使用來源：${sources}
+---
+Kalau belum tahu harus bagaimana menghadapi keluhan haid atau kesehatan kewanitaan, kamu mungkin merasa khawatir, dan perasaan itu dapat dipahami. Kita mulai pelan-pelan dari hal yang bisa dilakukan sekarang. Informasi dari basis data hanya menjadi arah penilaian, bukan diagnosis.
+
+【Yang bisa dilakukan sekarang】
+1. Catat kapan keluhan mulai, pola haid atau seberapa sering muncul, tingkat keparahan, serta perubahan nyeri, perdarahan, atau keputihan yang menyertai.
+2. Kalau belum tahu langkah berikutnya, tidak apa-apa. Bawa catatan itu saat berkonsultasi dengan dokter kandungan. Jika keluhan menetap, memburuk, atau ada tanda bahaya di bawah ini, jangan menunda pemeriksaan.
+${warning ? "\n【Hal yang perlu diperhatikan】\nJika keluhan menetap, memburuk, atau disertai tanda bahaya pada informasi di atas, sebaiknya segera periksa." : ""}
+
+【Arah penilaian dari basis data】
+${idFacts}
+
+Saat periksa, kamu bisa bertanya: “Berdasarkan catatan gejala saya, penyebab apa yang paling perlu dinilai sekarang?”
+
+Sumber yang dipakai: ${sources}`;
+  }
 
   return `月經或婦科狀況可能讓人感到擔心或不確定，這樣的感受可以理解。我們先一步一步整理：以下只呈現本次檢索到、與問題最相關的兩項資料，不代表妳患有其中任何疾病。
 
@@ -431,7 +553,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: "伺服器設定錯誤：缺少 API 金鑰" });
   }
 
-  const { prompt, history = [], dbContext = "", retrievedSources = "", ragCondition = "420 筆資料庫", queryIntent = "general", needsClarification = false } = req.body;
+  const { prompt, history = [], dbContext = "", retrievedSources = "", ragCondition = "420 筆資料庫", queryIntent = "general", answerGoal = "information", needsClarification = false } = req.body;
 
   if (!prompt || typeof prompt !== "string" || prompt.trim() === "") {
     return res.status(400).json({ error: "請提供有效的 prompt" });
@@ -445,11 +567,13 @@ module.exports = async (req, res) => {
     return res.status(200).json({ reply: ensureSafetyBoundary(buildClarificationReply()), clarification: true });
   }
   if (normalizeRagLevel(ragCondition) !== "none") {
-    const controlledReply = buildControlledRagReply(dbContext, retrievedSources);
-    if (!controlledReply) {
-      return res.status(503).json({ error: "檢索片段格式不完整，這一輪不會產生醫療回答，也不會寫入實驗紀錄；請重新送出。" });
+    try {
+      const plan = await buildGroundedContentPlan(prompt.trim(), dbContext, queryIntent, answerGoal);
+      return res.status(200).json({ reply: ensureSafetyBoundary(renderGroundedPlan(plan)), controlledRag: true, insufficient: Boolean(plan.insufficient) });
+    } catch (err) {
+      console.error("Grounded RAG planning error:", err);
+      return res.status(503).json({ error: "目前無法根據命中的資料可靠回答。為避免答非所問或虛構內容，本輪不會產生回答，也不會寫入實驗紀錄；請重新描述症狀後再送出。" });
     }
-    return res.status(200).json({ reply: ensureSafetyBoundary(controlledReply), controlledRag: true });
   }
 
   try {

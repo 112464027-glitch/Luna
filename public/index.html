@@ -422,6 +422,7 @@ function scoreEntry(promptText, promptTokens, entry) {
   const entryTokens = new Set(tokenize(text));
   const normalizedPrompt = normalizeText(promptText);
   const type = getEntryField(entry, 'type');
+  const answerGoal = detectAnswerGoal(promptText);
   let score = 0;
   for (const tok of promptTokens) {
     if (entryTokens.has(tok)) score += tok.length >= 5 ? 3 : 1;
@@ -438,6 +439,12 @@ function scoreEntry(promptText, promptTokens, entry) {
   if (/20-doc/.test(entry.name || '')) score += 1;
   if (!/問醫師|看診|就醫準備|tanya dokter|persiapan/.test(normalizedPrompt) && /醫病溝通問法/.test(type)) score -= 3;
   if (!/生育|懷孕|長期|kesuburan|hamil/.test(normalizedPrompt) && /生育與長期影響/.test(type)) score -= 3;
+  if (answerGoal === 'action') {
+    if (/治療原則|臨床評估|醫師評估|清潔與自我照護/.test(type)) score += 18;
+    if (/定義|診斷標準|與其他疾病差異/.test(type)) score -= 8;
+    if (/記錄|觀察|就醫|評估|回診|catat|periksa|evaluasi/i.test(entry.content || '')) score += 5;
+    if (/Rotterdam|AMH|診斷標準/i.test(getEntryField(entry, 'answer_zh')) && !/記錄|觀察|就醫|評估|回診/.test(getEntryField(entry, 'answer_zh'))) score -= 8;
+  }
   return score;
 }
 
@@ -455,9 +462,18 @@ function detectPromptTopic(promptText) {
   return 'general';
 }
 
+function detectAnswerGoal(promptText) {
+  const text = normalizeText(promptText);
+  if (/怎麼辦|如何處理|如何改善|如何緩解|該做什麼|apa yang harus|bagaimana mengatasi|cara mengurangi/.test(text)) return 'action';
+  if (/診斷|標準|criteria|kriteria|是不是|是否為/.test(text)) return 'diagnosis';
+  if (/症狀|表現|tanda|gejala/.test(text)) return 'symptoms';
+  if (/看診|問醫師|就醫準備|tanya dokter|persiapan/.test(text)) return 'consultation';
+  return 'information';
+}
+
 function needsPromptClarification(promptText) {
   const text = normalizeText(promptText).replace(/[？?！!。，,、\s]/g, '');
-  return /^(月經|經期|月經問題|想問月經|我想問月經|haid|menstruasi|soalhaid)$/.test(text);
+  return /^(月經|經期|月經問題|想問月經|我想問月經|月經怎麼辦|經期怎麼辦|月經該怎麼辦|haid|menstruasi|soalhaid|haidbagaimana|haidharusbagaimana)$/.test(text);
 }
 
 function getEntryTopicGroup(entry) {
@@ -620,7 +636,7 @@ function buildRetrievedDbContext(prompt) {
   const hits = retrieveRelevantDbEntries(prompt, topKByCondition[ragCondition] || 5);
   const context = hits.map(formatEvidenceEntry).join('\n\n');
   const sources = hits.map(e => getEntryField(e, 'chunk_id') || e.name).join(' ; ');
-  return { context, hits, sources, condition: ragCondition, conditionLabel: getConditionLabel(), intent: detectPromptTopic(prompt), needsClarification: needsPromptClarification(prompt) };
+  return { context, hits, sources, condition: ragCondition, conditionLabel: getConditionLabel(), intent: detectPromptTopic(prompt), answerGoal: detectAnswerGoal(prompt), needsClarification: needsPromptClarification(prompt) };
 }
 
 // ══════════════════════════════════════════════
@@ -676,7 +692,7 @@ async function sendMessage() {
   try {
     const res = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({prompt, history:chatHistory.slice(-12), dbContext, retrievedSources: rag.sources, ragCondition: rag.conditionLabel, queryIntent: rag.intent, needsClarification: rag.needsClarification})
+      body: JSON.stringify({prompt, history:chatHistory.slice(-12), dbContext, retrievedSources: rag.sources, ragCondition: rag.conditionLabel, queryIntent: rag.intent, answerGoal: rag.answerGoal, needsClarification: rag.needsClarification})
     });
     removeTyping();
     if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'伺服器錯誤'); }
