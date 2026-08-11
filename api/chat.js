@@ -350,6 +350,11 @@ module.exports = async (req, res) => {
   if (!prompt || typeof prompt !== "string" || prompt.trim() === "") {
     return res.status(400).json({ error: "請提供有效的 prompt" });
   }
+  if (normalizeRagLevel(ragCondition) !== "none" && !String(dbContext).trim()) {
+    return res.status(503).json({
+      error: `${ragCondition}載入失敗：未取得任何資料庫片段。為避免污染實驗條件，本輪不會改用無資料庫 baseline。`,
+    });
+  }
 
   try {
     const model = genAI.getGenerativeModel({
