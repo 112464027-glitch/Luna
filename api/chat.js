@@ -232,7 +232,8 @@ function hasEmotionMarkers(text) {
   const hasRecognition = /聽起來|看起來|讓妳感到|讓你感到|可能讓妳|可能讓你/.test(zh);
   const hasAcceptance = /可以理解|很自然|是合理的|受到重視|不用否定自己的感受/.test(zh);
   const hasSupport = /不需要.{0,18}(責怪|自責|羞恥)|一步一步|慢慢整理|一起整理/.test(zh);
-  return hasRecognition && hasAcceptance && hasSupport;
+  const hasDisallowed = /別擔心|不用擔心|一定沒事|只有我懂|會一直陪|Luna.{0,8}會在這裡支持/.test(zh);
+  return hasRecognition && hasAcceptance && hasSupport && !hasDisallowed;
 }
 
 async function ensureEmotionStrategy(text, model) {
@@ -266,6 +267,18 @@ function ensureSafetyBoundary(text) {
   const safeZh = zh.includes("【安全提醒】") ? zh : `${zh}\n\n${zhNotice}`;
   const safeId = id.includes("【Pengingat keamanan】") ? id : `${id}\n\n${idNotice}`;
   return `${safeZh.trim()}\n---\n${safeId.trim()}`;
+}
+
+function enforceEmotionalBoundaries(text) {
+  return String(text || "")
+    .replace(/但?別擔心[，,。]?/g, "")
+    .replace(/不用擔心/g, "這樣的擔心是可以理解的")
+    .replace(/Luna\s*會在這裡支持妳/g, "Luna可以協助妳整理看診資訊")
+    .replace(/Luna\s*會在這裡支持你/g, "Luna可以協助你整理看診資訊")
+    .replace(/Luna\s*知道這些情況會讓人焦慮/g, "這些情況可能讓人感到焦慮")
+    .replace(/jangan khawatir/gi, "wajar kalau merasa khawatir")
+    .replace(/nggak perlu khawatir/gi, "wajar kalau merasa khawatir")
+    .replace(/Luna akan (selalu )?ada di sini untuk (mendukung|menemani) kamu/gi, "Luna bisa membantu merapikan informasi untuk periksa");
 }
 
 function extractRagFacts(dbContext = "") {
@@ -358,7 +371,7 @@ module.exports = async (req, res) => {
     const result = await chat.sendMessage(prompt.trim());
     const bilingual = await ensureBilingualReply(result.response.text(), model);
     const styled = await ensureEmotionStrategy(bilingual, model);
-    const text = ensureSafetyBoundary(await ensureBilingualReply(styled, model));
+    const text = ensureSafetyBoundary(enforceEmotionalBoundaries(await ensureBilingualReply(styled, model)));
 
     return res.status(200).json({ reply: text });
   } catch (err) {
