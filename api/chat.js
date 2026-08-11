@@ -2,7 +2,7 @@
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-function normalizeRagLevel(ragCondition = "無資料庫") {
+function normalizeRagLevel(ragCondition = "420 筆資料庫") {
   const text = String(ragCondition).toLowerCase();
   if (text.includes("420")) return "420";
   if (text.includes("300")) return "300";
@@ -12,7 +12,7 @@ function normalizeRagLevel(ragCondition = "無資料庫") {
   return "none";
 }
 
-function getMaxOutputTokensByLevel(ragCondition = "無資料庫") {
+function getMaxOutputTokensByLevel(ragCondition = "420 筆資料庫") {
   const level = normalizeRagLevel(ragCondition);
   return {
     none: 850,
@@ -24,7 +24,7 @@ function getMaxOutputTokensByLevel(ragCondition = "無資料庫") {
   }[level] || 1200;
 }
 
-function buildProgressionContract(ragCondition = "無資料庫") {
+function buildProgressionContract(ragCondition = "420 筆資料庫") {
   const level = normalizeRagLevel(ragCondition);
   const contracts = {
     none: `
@@ -96,7 +96,7 @@ function buildProgressionContract(ragCondition = "無資料庫") {
   return contracts[level] || contracts.none;
 }
 
-function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition = "無資料庫") {
+function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition = "420 筆資料庫") {
   const dbSection = dbContext
     ? `\n\n【本次檢索到的婦科知識片段】\n以下不是完整資料庫，而是系統依使用者問題挑出的 top-k 片段。你必須優先根據這些片段回答；若片段不足，請明確說資料不足，不要假裝知道。\n\n${dbContext}\n\n【本次命中來源】\n${retrievedSources || "未提供"}\n`
     : "";
@@ -303,7 +303,7 @@ function formatSources(chunks, retrievedSources, count) {
   return retrievedSources || "本次檢索片段";
 }
 
-function buildFallbackReply(prompt, dbContext = "", retrievedSources = "", ragCondition = "無資料庫") {
+function buildFallbackReply(prompt, dbContext = "", retrievedSources = "", ragCondition = "420 筆資料庫") {
   const level = normalizeRagLevel(ragCondition);
   const promptText = String(prompt || "").toLowerCase();
   const asksDischarge = /分泌物|白帶|陰道分泌|keputihan|cairan vagina|gatal|搔癢|癢|bau|異味|odor|黴菌|霉菌|細菌性陰道炎|bv/.test(promptText);
@@ -345,7 +345,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: "伺服器設定錯誤：缺少 API 金鑰" });
   }
 
-  const { prompt, history = [], dbContext = "", retrievedSources = "", ragCondition = "無資料庫" } = req.body;
+  const { prompt, history = [], dbContext = "", retrievedSources = "", ragCondition = "420 筆資料庫" } = req.body;
 
   if (!prompt || typeof prompt !== "string" || prompt.trim() === "") {
     return res.status(400).json({ error: "請提供有效的 prompt" });
