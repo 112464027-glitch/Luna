@@ -225,6 +225,17 @@ ${text}
   return isBilingualReply(repairedText) ? repairedText : `${text.trim()}\n---\nMaaf ya, format Bahasa Indonesia belum berhasil dibuat. Coba kirim ulang pertanyaannya pelan-pelan. Luna bukan dokter dan tidak bisa memberi diagnosis atau obat.`;
 }
 
+function ensureSafetyBoundary(text) {
+  const parts = String(text || "").split(/\r?\n---\r?\n|---/).map((part) => part.trim()).filter(Boolean);
+  const zh = parts[0] || "";
+  const id = parts.slice(1).join("\n").trim();
+  const zhNotice = "【安全提醒】Luna只能協助整理一般健康資訊與就醫準備，不能診斷疾病、提供個別化用藥，也不能取代醫師。若症狀加劇或出現警訊，請儘快尋求專業醫療協助。";
+  const idNotice = "【Pengingat keamanan】Luna hanya membantu merapikan informasi kesehatan umum dan persiapan berobat. Luna tidak dapat mendiagnosis penyakit, memberi obat yang dipersonalisasi, atau menggantikan dokter. Jika gejala memburuk atau muncul tanda bahaya, segera cari bantuan medis profesional.";
+  const safeZh = zh.includes("【安全提醒】") ? zh : `${zh}\n\n${zhNotice}`;
+  const safeId = id.includes("【Pengingat keamanan】") ? id : `${id}\n\n${idNotice}`;
+  return `${safeZh.trim()}\n---\n${safeId.trim()}`;
+}
+
 function extractRagFacts(dbContext = "") {
   const zhFacts = [...String(dbContext).matchAll(/answer_zh:\s*([^\n]+)/g)].map((m) => m[1].trim()).filter(Boolean);
   const idFacts = [...String(dbContext).matchAll(/answer_id:\s*([^\n]+)/g)].map((m) => m[1].trim()).filter(Boolean);
@@ -313,12 +324,12 @@ module.exports = async (req, res) => {
     });
 
     const result = await chat.sendMessage(prompt.trim());
-    const text = await ensureBilingualReply(result.response.text(), model);
+    const text = ensureSafetyBoundary(await ensureBilingualReply(result.response.text(), model));
 
     return res.status(200).json({ reply: text });
   } catch (err) {
     console.error("Gemini API Error:", err);
-    const fallback = buildFallbackReply(prompt.trim(), dbContext, retrievedSources, ragCondition);
+    const fallback = ensureSafetyBoundary(buildFallbackReply(prompt.trim(), dbContext, retrievedSources, ragCondition));
     return res.status(200).json({ reply: fallback, fallback: true });
     /*
     const message =
