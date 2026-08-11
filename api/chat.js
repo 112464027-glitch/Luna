@@ -230,7 +230,7 @@ ${text}
 function hasEmotionMarkers(text) {
   const zh = String(text || "").split(/\r?\n---\r?\n|---/)[0] || "";
   const hasRecognition = /聽起來|看起來|讓妳感到|讓你感到|可能讓妳|可能讓你/.test(zh);
-  const hasAcceptance = /可以理解|很自然|是合理的|受到重視|不用否定自己的感受/.test(zh);
+  const hasAcceptance = /可以理解|很自然|很正常|是正常的|是合理的|受到重視|不用否定自己的感受/.test(zh);
   const hasSupport = /不需要.{0,18}(責怪|自責|羞恥)|一步一步|慢慢整理|一起整理/.test(zh);
   const hasDisallowed = /別擔心|不用擔心|一定沒事|只有我懂|會一直陪|Luna.{0,8}會在這裡支持/.test(zh);
   return hasRecognition && hasAcceptance && hasSupport && !hasDisallowed;
