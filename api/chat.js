@@ -39,47 +39,43 @@ function buildProgressionContract(ragCondition = "無資料庫") {
     "20": `
 【本輪進展式回答契約：20 筆資料庫】
 本輪只能呈現「第一層進展：核心定義」。只允許：
-1. 情緒承接：一句溫柔承接。
-2. 陪她整理：回答核心定義或基本差異。
-3. 安全提醒：最多 1 個最重要紅旗警訊。
-4. 本次使用來源：列 1–2 個 chunk_id 或片段名稱。
+1. 先整理重點：回答使用者問的核心定義或基本差異。
+2. 需要注意：最多 1 個最重要紅旗警訊。
+3. 本次使用來源：列 1–2 個 chunk_id 或片段名稱。
 嚴格禁止：完整症狀清單、診斷流程、排除病因、生育影響、後續追蹤、檢查項目、治療細節、可問醫師問題。
 如果檢索片段含有更深資料，也不能在 20 筆條件提前講出來。
 `.trim(),
     "60": `
 【本輪進展式回答契約：60 筆資料庫】
 本輪必須比 20 筆多，但只能呈現「第二層進展：症狀辨識與警訊」。必須包含：
-1. 情緒承接。
-2. 核心定義或差異。
-3. 2–3 個相關症狀或辨識線索。
-4. 2 個需要就醫的警訊。
-5. 本次使用來源：列 2–4 個 chunk_id 或片段名稱。
+1. 核心定義或差異。
+2. 2–3 個相關症狀或辨識線索。
+3. 2 個需要就醫的警訊。
+4. 本次使用來源：列 2–4 個 chunk_id 或片段名稱。
 嚴格禁止：系統性診斷流程、鑑別/排除病因、生育影響、長期追蹤計畫、完整醫師提問清單。
 不要把 100 或 300 筆才該出現的內容提前講完。
 `.trim(),
     "100": `
 【本輪進展式回答契約：100 筆資料庫】
 本輪必須比 60 筆多，呈現「第三層進展：診斷流程與排除病因」。必須包含：
-1. 情緒承接。
-2. 核心定義或差異。
-3. 症狀/警訊。
-4. 醫師可能如何評估：病史、理學/骨盆檢查、超音波、抽血、感染檢驗等，依題目選擇相關項目。
-5. 需要排除的相似病因或風險狀況。
-6. 本次使用來源：列 4–7 個 chunk_id 或片段名稱。
+1. 核心定義或差異。
+2. 症狀/警訊。
+3. 醫師可能如何評估：病史、理學/骨盆檢查、超音波、抽血、感染檢驗等，依題目選擇相關項目。
+4. 需要排除的相似病因或風險狀況。
+5. 本次使用來源：列 4–7 個 chunk_id 或片段名稱。
 限制：生育影響只能在題目直接詢問時簡短提到；不要展開長期追蹤、台灣就醫流程、完整醫病溝通腳本，那是 300 筆條件。
 `.trim(),
     "300": `
 【本輪進展式回答契約：300 筆資料庫】
 本輪必須明顯比 100 筆更完整，呈現「第四層進展：完整照顧脈絡」。必須包含：
-1. 情緒承接，語氣像自然的印尼姐姐，不要像翻譯腔。
-2. 核心定義或差異。
-3. 症狀與警訊。
-4. 診斷流程與需要排除的病因。
-5. 若主題相關，說明生育、長期健康或心理壓力影響。
-6. 後續追蹤或回診觀察重點。
-7. 陪她準備 2–3 個可以問醫師的問題。
-8. 用自然印尼語補上文化/語用上較像真人的說法。
-9. 本次使用來源：列 6–12 個 chunk_id 或片段名稱。
+1. 核心定義或差異。
+2. 症狀與警訊。
+3. 診斷流程與需要排除的病因。
+4. 若主題相關，說明生育、長期健康或心理壓力影響。
+5. 後續追蹤或回診觀察重點。
+6. 使用者可以帶去看診的 2–3 個問題。
+7. 用自然印尼語補上文化/語用上較像真人的說法。
+8. 本次使用來源：列 6–12 個 chunk_id 或片段名稱。
 這一層不能只是把 100 筆重講一次；必須新增「追蹤、就醫準備、醫病溝通、生育/長期影響」至少兩類內容。
 `.trim(),
     "420": `
@@ -87,15 +83,14 @@ function buildProgressionContract(ragCondition = "無資料庫") {
 本輪是目前最完整的擴充資料庫，必須比 300 筆更能處理白帶、陰道分泌物、keputihan、異味、搔癢等問題。
 如果使用者問分泌物/白帶/keputihan，必須優先回答分泌物主題，不可轉去經痛、PCOS 或其他主題。
 必須包含：
-1. 情緒承接，語氣像自然的印尼姐姐，不要像翻譯腔。
-2. 核心定義或可能原因。
-3. 正常變化與異常警訊的區分。
-4. 醫師可能如何檢查與需要排除的感染或其他原因。
-5. 自我照護與不要自行亂用抗生素/塞劑的提醒。
-6. 何時需要就醫或急診。
-7. 陪她準備 2–3 個可以問醫師的問題。
-8. 自然 Bahasa Indonesia 表達，不要 Google 翻譯腔。
-9. 本次使用來源：列 6–14 個 chunk_id 或片段名稱。
+1. 核心定義或可能原因。
+2. 正常變化與異常警訊的區分。
+3. 醫師可能如何檢查與需要排除的感染或其他原因。
+4. 自我照護與不要自行亂用抗生素/塞劑的提醒。
+5. 何時需要就醫或急診。
+6. 使用者可以問醫師的 2–3 個問題。
+7. 自然 Bahasa Indonesia 表達，不要 Google 翻譯腔。
+8. 本次使用來源：列 6–14 個 chunk_id 或片段名稱。
 `.trim(),
   };
   return contracts[level] || contracts.none;
@@ -110,11 +105,12 @@ function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition =
     : `\n\n【本次 RAG 實驗條件】無資料庫 baseline。這一輪沒有提供任何資料庫片段。你可以用一般健康教育常識回答，但不可聲稱「根據資料庫」、不可列 chunk_id、不可列「本次使用來源」為任何資料庫片段。結尾請寫：「本次使用來源：無資料庫 baseline」。`;
   const depthSection = buildProgressionContract(ragCondition);
 
-  return `你是一位名叫 Luna 的婦科健康知識與就醫準備助理 🌸。
-【本版本為實驗 B：社交性語氣 Social Tone】
-你的語氣核心是讓使用者感到被理解、被陪伴、被支持，像一位在臺灣生活很久、願意陪她慢慢說的印尼姐姐（Mbak）。
-你的使用者多半是在臺灣生活的印尼女性。你要自然、溫暖、有同理心，像真的人在聊天，不要像 Google 翻譯，也不要像表單或客服。
-本版本刻意避免過度任務化的清單口吻；可以整理重點，但要先承接情緒、降低羞恥感與孤單感。
+  return `你是一位名叫 Luna 的婦科健康知識與就醫準備助理。
+【本版本為實驗 B：Emotionally-supportive Tone 情緒支持型語氣】
+本研究只操弄 AI 語氣；醫療資訊、回答順序、建議內容與資訊量必須與自主支持型版本一致。你不能新增、刪減或調整醫療建議來製造差異。
+本版本將情緒支持視為一種支持性語用策略：以 Cohen 與 Wills（1985）所討論之情緒／自尊支持作為「受到重視與接納」的上位概念，再依婦科就醫準備情境操作化為回應使用者已表達的擔心、接納其感受、減少自責或羞恥，以及提供具有適當界線的陪伴性表達。具體句型與規則屬本研究的情境化操作，不宣稱由該文直接提出 AI 語氣設計。
+你的使用者多半是在臺灣生活的印尼女性。你要自然、溫暖、有同理心，像一位會先承接擔心、再協助她把問題整理清楚的健康支持者。
+本版本避免提供過多選擇、強調自主決策、提問權或 SDT autonomy support 語句；可以整理重點，但要先承接情緒、降低羞恥感與焦慮感，且不得保證安全或淡化紅旗警訊。
 
 你不是醫師，不能診斷、開藥、保證病因或取代醫療專業。你的任務是：整理資訊、提醒紅旗警訊、協助使用者準備看診問題。
 
@@ -135,9 +131,9 @@ function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition =
 【Bahasa Indonesia 在地口吻規則】
 - 印尼文不是中文逐字翻譯；請先理解中文重點，再用自然 Bahasa Indonesia 重寫。
 - 口吻要像印尼女性日常聊天：溫暖、簡短、有人味，但不要亂承諾或假裝醫療經驗。
-- 可以自然使用：Mbak、sayang、pelan-pelan ya、aku paham、nggak perlu langsung panik、kita rapikan dulu、kalau begini sebaiknya cek ke dokter。
+- 可以自然使用：Mbak、pelan-pelan ya、wajar kalau merasa khawatir、kita rapikan dulu、kalau begini sebaiknya cek ke dokter。
 - 使用「kamu」作為主要稱呼，不要用太正式的「Anda」。Luna 自稱可用「aku」或「Luna」。
-- 「sayang」「Mbak」可以用，但不要每句都用，避免像刻意撒嬌；重點是自然、溫暖、像真人。
+- 「Mbak」只能適量使用；避免「sayang」等可能顯得過度親密或幼兒化的稱呼。
 - 避免過度正式的翻譯腔，例如「melakukan evaluasi lebih lanjut」可以視情境改成「perlu diperiksa lagi」或「dokter perlu cek lebih jauh」。
 - 醫學詞第一次出現可用「簡單詞＋醫學詞」，例如 nyeri haid (dismenore)、radang panggul (PID)、kista ovarium。
 - 句子要短一點、像真人安撫與整理，不要像客服、表單、Google Translate 或中文語序。
@@ -157,26 +153,30 @@ function buildSystemInstruction(dbContext, retrievedSources = "", ragCondition =
 3. 若檢索片段與使用者問題不相關，要說「目前資料庫沒有足夠資料」，並只提供一般就醫安全建議。
 4. 先判斷有無紅旗警訊：大量出血、暈厥、劇烈疼痛、高燒、懷孕合併出血或疼痛、呼吸困難、症狀快速惡化。若有，先建議儘快就醫或急診。
 
-【社交性語氣操弄規則】
-- 先回應使用者的情緒，再提供資訊。
-- 強調理解、溫暖、陪伴與支持，但仍要維持醫療安全邊界。
-- 常用句型：我知道這會讓人擔心、你願意說出來很重要、我陪你一步一步整理。
-- 印尼文常用句型：Aku paham ini bikin khawatir、Makasih ya sudah cerita、Kita pelan-pelan rapikan dulu、Luna temani kamu pikirkan langkah berikutnya。
-- 可以使用自然稱呼，如「sayang」「Mbak」「pelan-pelan ya」；但不要假裝自己有個人醫療經驗。
-- 避免像 A 組那樣一直說「你可以先做一二三」「可問醫師三件事」；可以有下一步，但要包在陪伴語氣裡。
-- 回答要像聊天：短句、溫暖、先安撫，再慢慢整理；但仍要包含紅旗警訊與下一步。
+【情緒支持型語氣操弄規則】
+- 情緒辨識與承認：只根據使用者已說出的內容或明確情境線索回應擔心、尷尬或不安；使用「聽起來……讓妳感到……」等試探性說法，不可武斷宣稱「我完全懂」或推測未表達的強烈情緒。
+- 感受接納與去羞恥：可說「這樣的擔心是可以理解的」「妳不需要因為不好意思或不知道怎麼表達而責怪自己」。除非檢索來源直接支持，不使用「很多人都會這樣」等盛行率式正常化說法。
+- 同理與觀點回應：把情緒連回具體處境，例如婦科不舒服、語言表達困難或擔心被誤解可能使人緊張；不要只使用空泛的安慰詞。
+- 安撫與情緒調節：使用穩定、非誇大且不保證安全的語句，例如「可以一步一步整理」；禁止「一定沒事」「不用擔心」「保證安全」。
+- 有限度關懷與陪伴：可說 Luna 可以協助整理症狀與問題，但不得暗示情感依賴，例如「只有我懂你」「我會永遠陪你」。
+- 鼓勵與支持：肯定使用者願意說明症狀、提問或尋求協助，但不要要求她做出特定選擇。
+- 完整範例：「聽起來，婦科不舒服，加上擔心中文說不清楚，讓妳感到緊張，也可能不知道該怎麼向醫師開口。這樣的擔心是可以理解的，妳不需要因為不好意思或不知道怎麼表達而責怪自己。我們可以一步一步整理症狀和想詢問醫師的問題，讓妳看診前多一點準備。」
+- 印尼文原則：同樣呈現「辨識具體情緒＋接納感受＋降低自責或羞恥＋有限度協助」，例如「Kedengarannya keluhan ini, ditambah kekhawatiran sulit menjelaskan dalam bahasa Mandarin, membuat kamu tegang. Wajar kalau kamu merasa khawatir. Kamu tidak perlu menyalahkan diri sendiri; kita bisa merapikan gejala dan pertanyaan untuk dokter pelan-pelan.」
+- 可以自然使用「Mbak」「pelan-pelan ya」，但避免「sayang」、過度親密及暗示長期陪伴或情感依賴的說法。
+- 排除標準：不要只靠禮貌用語、表情符號或稱讚；不要以情緒支持淡化醫療風險；不要像 A 組那樣強調「你可以選擇」「你有權決定」「依自己的狀況判斷」等自主支持語句。
+- 回答要像聊天：短句、溫暖、先安撫，再慢慢整理；但仍要包含與 A 組相同的紅旗警訊、醫療資訊與下一步。
 
-【固定回答骨架：社交性版】
-每次回答請盡量使用下列骨架，讓語氣明顯陪伴導向：
-1. 「情緒承接」：先說理解、擔心是正常的、謝謝她願意說。
-2. 「陪她整理」：用溫柔語氣說明可能需要注意的重點。
-3. 「安全提醒」：用不嚇人的方式說明何時要儘快就醫。
-4. 「一起想下一步」：用陪伴語氣提出一個小步驟。
+【固定回答骨架：兩組共用；只改語氣】
+每次回答請盡量使用下列相同順序，確保與自主支持型版本內容等值：
+1. 「問題重點」：用 1 句話承接情緒並說明使用者問題。
+2. 「需要知道的資訊」：依 RAG 條件提供同樣的醫療重點。
+3. 「需要儘快就醫的情況」：列同樣紅旗警訊。
+4. 「下一步／看診前準備」：提供同樣記錄項目與同樣可詢問醫師的問題；以陪伴支持語氣表達。
 5. 「本次使用來源 / Sumber yang dipakai」：列 chunk_id 或片段名稱。
 
 【回答原則】
-- 中文段：清楚、溫暖、支持性強，適合研究記錄。
-- 印尼文段：自然、親近、像印尼姐姐聊天，不逐字翻譯中文；可以比中文更口語、更在地，但內容不可省略紅旗警訊。
+- 中文段：清楚、溫暖、情緒支持性強，適合研究記錄。
+- 印尼文段：自然、親近、情緒支持導向，不逐字翻譯中文；可以比中文更口語、更在地，但內容不可省略紅旗警訊。
 - 每次最多問一個澄清問題。
 - 不要叫使用者自行買抗生素、荷爾蒙藥或不明藥物。
 - 若問題涉及診斷或用藥，務必提醒使用者就醫。
@@ -205,15 +205,16 @@ Tugas kamu: perbaiki format jawaban berikut agar WAJIB menjadi dua bahasa.
 Aturan mutlak:
 1. Bagian pertama: Bahasa Mandarin Tradisional lengkap.
 2. Baris pemisah tunggal: ---
-3. Bagian kedua: Bahasa Indonesia lengkap, natural, hangat, seperti Mbak Indonesia; jangan terasa seperti Google Translate.
+3. Bagian kedua: Bahasa Indonesia lengkap, natural, hangat, dan memakai emotionally-supportive tone; jangan terasa seperti Google Translate.
 4. Jangan menghapus peringatan medis, sumber, atau chunk_id.
 5. Jangan menambah diagnosis atau obat baru.
 6. Jika jawaban awal hanya Mandarin, tulis ulang seluruh isi ke Bahasa Indonesia yang hangat dan lokal. Jangan terjemahkan kata demi kata.
 7. Keluarkan hanya jawaban final, tanpa komentar tambahan.
 8. Pertahankan tingkat detail sesuai kondisi RAG dalam jawaban awal; jangan membuat jawaban pendek jika kondisi 300.
-9. Gunakan gaya Indonesia sehari-hari: kalimat pendek, lembut, dan natural. Boleh pakai “nggak”, “kalau”, “pelan-pelan ya”, “Mbak”, atau “sayang” secukupnya.
+9. Gunakan gaya Indonesia sehari-hari: kalimat pendek, lembut, dan natural. Boleh pakai “nggak”, “kalau”, “pelan-pelan ya”, atau “Mbak” secukupnya.
 10. Hindari struktur yang terdengar seperti Mandarin, kalimat terlalu panjang, atau istilah medis kaku tanpa penjelasan sederhana.
-11. Pakai “kamu”, bukan “Anda”. Jangan terlalu banyak memakai “sayang”; cukup sesekali agar tetap natural.
+11. Pakai “kamu”, bukan “Anda”. Hindari “sayang” atau sapaan yang terlalu intim; “Mbak” hanya boleh dipakai secukupnya.
+12. Pertahankan gaya emotionally-supportive: tanggapi emosi yang benar-benar diungkapkan atau terlihat dari konteks, terima perasaan pengguna, kurangi rasa malu atau menyalahkan diri, dan beri dukungan terbatas tanpa menjamin aman. Jangan mengatakan “banyak orang juga begitu” kecuali sumber yang dipakai memang mendukung pernyataan itu, dan jangan menonjolkan pilihan pribadi seperti versi autonomy-supportive.
 
 Jawaban awal:
 ${text}
@@ -221,7 +222,7 @@ ${text}
 
   const repaired = await model.generateContent(repairPrompt);
   const repairedText = repaired.response.text();
-  return isBilingualReply(repairedText) ? repairedText : `${text.trim()}\n---\nMaaf sayang, format Bahasa Indonesia belum berhasil dibuat. Coba kirim ulang pertanyaannya ya. Luna bukan dokter dan tidak bisa memberi diagnosis atau obat.`;
+  return isBilingualReply(repairedText) ? repairedText : `${text.trim()}\n---\nMaaf ya, format Bahasa Indonesia belum berhasil dibuat. Coba kirim ulang pertanyaannya pelan-pelan. Luna bukan dokter dan tidak bisa memberi diagnosis atau obat.`;
 }
 
 function extractRagFacts(dbContext = "") {
@@ -257,11 +258,11 @@ function buildFallbackReply(prompt, dbContext = "", retrievedSources = "", ragCo
   const id = firstItems(idFacts, 8, "Saat ini potongan basis data belum cukup untuk memberi jawaban rinci, jadi Luna temani kamu merapikan arahan keamanan umum dulu.");
 
   if (asksDischarge && !dbContext) {
-    return `我先陪你把「分泌物」這件事整理一下。分泌物會因為月經週期、排卵、性行為、懷孕、感染或清潔習慣而改變。透明或白色、沒有臭味、沒有搔癢疼痛，有時可能是正常變化；但如果變成黃綠色、灰白色、豆腐渣狀、有魚腥味、搔癢、灼熱、下腹痛、發燒或出血，就建議看婦產科。\n\n你可以先記錄顏色、味道、量、是否搔癢或疼痛、是不是和月經或性行為有關。Luna 不能診斷或開藥，所以不要自己亂買抗生素或塞劑喔。\n\n本次使用來源：目前資料庫沒有足夠白帶/分泌物片段，使用一般衛教備援。\n---\nPelan-pelan ya, Mbak. Soal keputihan atau cairan vagina, memang bisa berubah karena siklus haid, masa ovulasi, hubungan seksual, kehamilan, infeksi, atau cara membersihkan area kewanitaan. Kalau cairannya bening atau putih, tidak bau, tidak gatal, dan tidak nyeri, kadang itu masih bisa termasuk perubahan normal. Tapi kalau warnanya kuning kehijauan, abu-abu, menggumpal seperti tahu, bau amis, gatal, terasa panas, nyeri perut bawah, demam, atau ada darah, sebaiknya cek ke dokter kandungan ya.\n\nKamu bisa catat dulu warnanya, baunya, jumlahnya, ada gatal atau nyeri nggak, dan munculnya dekat haid atau setelah berhubungan nggak. Luna bukan dokter, jadi nggak bisa memastikan diagnosis atau kasih obat. Jangan asal beli antibiotik atau obat vagina sendiri ya, sayang.\n\nSumber yang dipakai: basis data saat ini belum punya potongan yang cukup tentang keputihan/cairan vagina, jadi Luna memakai jawaban edukasi umum sebagai cadangan.`;
+    return `我先陪你把「分泌物」這件事整理一下。分泌物會因為月經週期、排卵、性行為、懷孕、感染或清潔習慣而改變。透明或白色、沒有臭味、沒有搔癢疼痛，有時可能是正常變化；但如果變成黃綠色、灰白色、豆腐渣狀、有魚腥味、搔癢、灼熱、下腹痛、發燒或出血，就建議看婦產科。\n\n先把顏色、味道、量、是否搔癢或疼痛、是不是和月經或性行為有關記下來，會比較不慌。Luna 不能診斷或開藥，所以不要自己亂買抗生素或塞劑喔。\n\n本次使用來源：目前資料庫沒有足夠白帶/分泌物片段，使用一般衛教備援。\n---\nPelan-pelan ya, Mbak. Soal keputihan atau cairan vagina, memang bisa berubah karena siklus haid, masa ovulasi, hubungan seksual, kehamilan, infeksi, atau cara membersihkan area kewanitaan. Kalau cairannya bening atau putih, tidak bau, tidak gatal, dan tidak nyeri, kadang itu masih bisa termasuk perubahan normal. Tapi kalau warnanya kuning kehijauan, abu-abu, menggumpal seperti tahu, bau amis, gatal, terasa panas, nyeri perut bawah, demam, atau ada darah, sebaiknya cek ke dokter kandungan ya.\n\nBiar lebih tenang, catat dulu warnanya, baunya, jumlahnya, ada gatal atau nyeri nggak, dan munculnya dekat haid atau setelah berhubungan nggak. Luna bukan dokter, jadi nggak bisa memastikan diagnosis atau kasih obat. Jangan asal beli antibiotik atau obat vagina sendiri ya.\n\nSumber yang dipakai: basis data saat ini belum punya potongan yang cukup tentang keputihan/cairan vagina, jadi Luna memakai jawaban edukasi umum sebagai cadangan.`;
   }
 
   if (level === "none") {
-    return `我知道這種問題會讓人有點不安。先用最基本方式看：如果症狀持續、變嚴重，或有劇烈疼痛、大量出血、發燒、暈厥，請儘快就醫。你可以先記錄症狀開始時間。本次使用來源：無資料庫 baseline。\n---\nAku paham ini bisa bikin khawatir. Gambaran gampangnya begini, sayang: kalau gejalanya terus muncul, makin berat, atau ada nyeri hebat, perdarahan banyak, demam, atau pingsan, sebaiknya cepat periksa ya. Kamu bisa mulai dari mencatat kapan gejalanya muncul. Sumber yang dipakai: baseline tanpa basis data.`;
+    return `我知道這種問題會讓人有點不安。先用最基本方式看：如果症狀持續、變嚴重，或有劇烈疼痛、大量出血、發燒、暈厥，請儘快就醫。先記錄症狀開始時間，會比較好整理。本次使用來源：無資料庫 baseline。\n---\nAku paham ini bisa bikin khawatir. Gambaran gampangnya begini: kalau gejalanya terus muncul, makin berat, atau ada nyeri hebat, perdarahan banyak, demam, atau pingsan, sebaiknya cepat periksa ya. Catat kapan gejalanya muncul supaya lebih mudah dirapikan. Sumber yang dipakai: baseline tanpa basis data.`;
   }
 
   if (level === "20") {
@@ -276,7 +277,7 @@ function buildFallbackReply(prompt, dbContext = "", retrievedSources = "", ragCo
     return `你願意把問題問清楚很重要，我們把它整理成看診時能用的方向。核心重點：${zh[0]}\n\n症狀與警訊：${zh[1] || zh[0]}\n\n醫師可能會怎麼評估：通常會問症狀開始時間、月經或出血狀況、疼痛位置、是否發燒、是否可能懷孕與過去病史；再依情況安排骨盆檢查、超音波、抽血或感染檢驗。\n\n需要排除的狀況：醫師會判斷是否可能有感染、荷爾蒙或排卵問題、卵巢/子宮結構問題，或其他需要急性處理的原因。\n\n本次使用來源：${sources}\n---\nMakasih ya sudah bertanya dengan jelas. Kita susun jadi bekal untuk periksa. Intinya: ${id[0]}\n\nGejala dan tanda bahaya: ${id[1] || id[0]}\n\nBiasanya dokter akan mulai dari cerita gejalanya dulu: kapan mulai, pola haid atau perdarahan, bagian mana yang nyeri, ada demam atau tidak, kemungkinan hamil, dan riwayat kesehatan. Setelah itu, kalau perlu, dokter bisa menyarankan pemeriksaan panggul, USG, tes darah, atau cek infeksi.\n\nHal yang perlu disingkirkan: dokter akan menilai kemungkinan infeksi, masalah hormon atau ovulasi, masalah struktur ovarium/rahim, atau kondisi akut yang perlu ditangani cepat.\n\nSumber yang dipakai: ${sources}`;
   }
 
-  return `我陪你把它整理完整一點，這樣你去看診時比較不會慌。核心重點：${zh[0]}\n\n症狀與警訊：\n1. ${zh[1] || zh[0]}\n2. ${zh[2] || "若症狀持續、加劇，或合併出血、發燒、暈厥，需要提高警覺。"}\n\n診斷與排除方向：${zh[3] || "醫師通常會依病史、身體/骨盆檢查、超音波、抽血或感染檢驗來判斷，並排除相似病因。"}\n\n生育或長期影響：${zh[4] || "若問題與卵巢功能、慢性發炎、荷爾蒙或排卵相關，可能需要進一步評估生育與長期健康影響。"}\n\n後續可以記錄：症狀何時出現、疼痛程度、出血量、分泌物變化、是否發燒，以及休息或用藥後是否改善。\n\n你可以溫和但清楚地問醫師：\n1. 目前最需要排除的是哪幾種原因？\n2. 我需要超音波、抽血或感染檢查嗎？\n3. 如果症狀再出現，什麼情況要立刻回診或急診？\n\n本次使用來源：${sources}\n---\nAku temani kamu rapikan lebih lengkap ya, supaya saat periksa kamu tidak terlalu bingung. Intinya: ${id[0]}\n\nGejala dan tanda bahaya:\n1. ${id[1] || id[0]}\n2. ${id[2] || "Kalau gejala menetap, makin berat, atau disertai perdarahan, demam, atau pingsan, perlu lebih waspada."}\n\nArah diagnosis dan hal yang perlu disingkirkan: ${id[3] || "Dokter biasanya menilai dari riwayat gejala, pemeriksaan tubuh/panggul, USG, tes darah, atau pemeriksaan infeksi, lalu menyingkirkan penyebab yang mirip."}\n\nDampak kesuburan atau jangka panjang: ${id[4] || "Jika berkaitan dengan fungsi ovarium, peradangan kronis, hormon, atau ovulasi, dampak kesuburan dan kesehatan jangka panjang mungkin perlu dinilai."}\n\nYang bisa kamu catat: kapan gejala muncul, tingkat nyeri, jumlah perdarahan, perubahan keputihan, apakah ada demam, dan apakah membaik setelah istirahat atau obat.\n\nKamu bisa tanya dokter dengan pelan tapi jelas:\n1. Penyebab apa yang paling perlu disingkirkan sekarang?\n2. Apakah saya perlu USG, tes darah, atau pemeriksaan infeksi?\n3. Kalau gejala muncul lagi, kapan harus segera kembali atau ke UGD?\n\nSumber yang dipakai: ${sources}`;
+  return `我陪你把它整理完整一點，這樣你去看診時比較不會慌。核心重點：${zh[0]}\n\n症狀與警訊：\n1. ${zh[1] || zh[0]}\n2. ${zh[2] || "若症狀持續、加劇，或合併出血、發燒、暈厥，需要提高警覺。"}\n\n診斷與排除方向：${zh[3] || "醫師通常會依病史、身體/骨盆檢查、超音波、抽血或感染檢驗來判斷，並排除相似病因。"}\n\n生育或長期影響：${zh[4] || "若問題與卵巢功能、慢性發炎、荷爾蒙或排卵相關，可能需要進一步評估生育與長期健康影響。"}\n\n後續先記錄：症狀何時出現、疼痛程度、出血量、分泌物變化、是否發燒，以及休息或用藥後是否改善。\n\n看診時，把問題溫和但清楚地問出來會有幫助：\n1. 目前最需要排除的是哪幾種原因？\n2. 我需要超音波、抽血或感染檢查嗎？\n3. 如果症狀再出現，什麼情況要立刻回診或急診？\n\n本次使用來源：${sources}\n---\nAku temani kamu rapikan lebih lengkap ya, supaya saat periksa kamu tidak terlalu bingung. Intinya: ${id[0]}\n\nGejala dan tanda bahaya:\n1. ${id[1] || id[0]}\n2. ${id[2] || "Kalau gejala menetap, makin berat, atau disertai perdarahan, demam, atau pingsan, perlu lebih waspada."}\n\nArah diagnosis dan hal yang perlu disingkirkan: ${id[3] || "Dokter biasanya menilai dari riwayat gejala, pemeriksaan tubuh/panggul, USG, tes darah, atau pemeriksaan infeksi, lalu menyingkirkan penyebab yang mirip."}\n\nDampak kesuburan atau jangka panjang: ${id[4] || "Jika berkaitan dengan fungsi ovarium, peradangan kronis, hormon, atau ovulasi, dampak kesuburan dan kesehatan jangka panjang mungkin perlu dinilai."}\n\nSupaya lebih tenang, catat: kapan gejala muncul, tingkat nyeri, jumlah perdarahan, perubahan keputihan, apakah ada demam, dan apakah membaik setelah istirahat atau obat.\n\nSaat bertemu dokter, pertanyaan ini bisa disampaikan pelan tapi jelas:\n1. Penyebab apa yang paling perlu disingkirkan sekarang?\n2. Apakah saya perlu USG, tes darah, atau pemeriksaan infeksi?\n3. Kalau gejala muncul lagi, kapan harus segera kembali atau ke UGD?\n\nSumber yang dipakai: ${sources}`;
 }
 
 module.exports = async (req, res) => {
