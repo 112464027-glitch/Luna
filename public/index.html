@@ -578,8 +578,9 @@ function getOfficialEvidenceBundle(entry) {
 
 function selectOfficialBundleEntries(ranked, topK) {
   const topEntry = ranked[0];
+  if (!topEntry) return [];
   const bundle = getOfficialEvidenceBundle(topEntry);
-  if (!topEntry || !bundle || topEntry._score < 30) return [];
+  if (!bundle || topEntry._score <= 0) return [];
 
   const topChunkId = getEntryField(topEntry, 'chunk_id');
   const typePriority = {
@@ -707,7 +708,11 @@ function retrieveRelevantDbEntries(prompt, topK = 5, topicOverride = '') {
   const ranked = candidates
     .map(e => ({ ...e, _score: scoreEntry(prompt, promptTokens, e) }))
     .sort((a, b) => b._score - a._score);
-  const officialBundle = selectOfficialBundleEntries(ranked, topK);
+  const officialSeed = ranked.find(entry => getOfficialEvidenceBundle(entry) && entry._score > 0);
+  const officialRanked = officialSeed
+    ? [officialSeed, ...ranked.filter(entry => entry.id !== officialSeed.id && getOfficialEvidenceBundle(entry) === getOfficialEvidenceBundle(officialSeed))]
+    : [];
+  const officialBundle = selectOfficialBundleEntries(officialRanked, topK);
   if (officialBundle.length) return officialBundle;
   const topScore = ranked[0]?._score || 0;
   const confidenceFiltered = topScore >= 60

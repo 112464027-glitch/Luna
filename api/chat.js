@@ -103,7 +103,7 @@ function buildExperimentAnswerContract() {
 
 作答前先在內部形成相同的醫療內容計畫，再套用本組語氣；不要輸出計畫本身：
 1. 問題重點：只回答使用者真正詢問的主題，不可因片段提到 PCOS、POI 或其他疾病就自行改題或暗示診斷。
-2. 醫療回答優先：「醫療回答」先用一個連貫段落整合核心說明、主要原因、現在可做的處理與證據支持的治療方向；該段約 280–450 個中文字，視覺上至少約四行。不得改成四個短條列，也不得只教使用者怎麼看醫生。
+2. 醫療回答優先：「醫療回答」先用一個連貫段落整合核心說明、主要原因、現在可做的處理與證據支持的治療方向；該段不得少於150個中文字，通常控制在180–450字，視覺上至少約四行。不得改成四個短條列，也不得只教使用者怎麼看醫生。
 3. 就醫賦權輔助：在醫療問題回答完後，才補充症狀紀錄、檢查方向、可詢問醫師的問題與中印尼雙語看診說明句。
 4. 需要儘快就醫的情況：只列與問題或已描述症狀相關的 1–2 個警訊；不要每題都貼完整通用警訊清單。
 5. 本次使用來源：只列實際支持上述內容的 3–5 個 chunk_id，不得列來源網址、內部標籤或未使用片段。
@@ -311,7 +311,7 @@ function buildDeterministicOfficialPlan(dbContext = "") {
   const supporting = evidence.slice(1);
   const paragraphPairs = [primary];
   for (const item of supporting.filter((entry) => !isWarning(entry))) {
-    if (paragraphPairs.map((entry) => entry.answerZh).join("").length >= 280 || paragraphPairs.length >= 3) break;
+    if (paragraphPairs.map((entry) => entry.answerZh).join("").length >= 180 || paragraphPairs.length >= 5) break;
     paragraphPairs.push(item);
   }
   const paragraphChunkIds = new Set(paragraphPairs.map((item) => item.chunkId));
@@ -388,7 +388,7 @@ ${dbContext}
 只輸出 JSON，格式如下：
 {
   "insufficient": false,
-  "direct_zh": "用一個約280至450個中文字的連貫段落，整合核心回答、主要原因、可做處理與治療方向，不使用條列",
+  "direct_zh": "用一個至少150個中文字、通常180至450字的連貫段落，整合核心回答、主要原因、可做處理與治療方向，不使用條列",
   "direct_id": "與中文相同事實與資訊量的自然印尼文連貫段落",
   "actions_zh": ["最多3項具體、可執行且由證據支持的下一步"],
   "actions_id": ["與中文逐項相同意思的自然印尼文"],
@@ -433,29 +433,39 @@ function renderGroundedPlan(plan, continuation = {}) {
   const idContinuation = continuation.isContinuation && supplementalText
     ? `\n\n【Informasi tambahan sudah diteruskan】\nPertanyaan sebelumnya: ${previousQuestion}\nTambahan kali ini: ${supplementalText}\nLuna mempertahankan topik sebelumnya dan memakai informasi tambahan ini untuk mencari ulang informasi medis serta tanda bahaya yang relevan.`
     : "";
-  return `婦科或月經狀況出現變化時，感到擔心、尷尬或不確定是可以理解的。Luna會先提供有資料支持的醫療回答，再陪妳一步一步整理後續選項；不同原因的治療方式不同，以下內容不代表替妳診斷。
+  const zhFollowUp = plan.follow_up_zh
+    ? plan.follow_up_zh.replace(/^若要繼續(?:由 Luna 協助)?整理[，,：:]?\s*/, "")
+    : "";
+  const idFollowUp = plan.follow_up_id
+    ? plan.follow_up_id.replace(/^Kalau ingin lanjut(?: merapikan bersama Luna)?[,.:]?\s*/i, "")
+    : "";
+  return `聽起來，婦科不舒服，加上不確定是否需要就醫或不知道怎麼向醫師開口，可能讓妳感到緊張與不安。這樣的擔心是可以理解的，妳不需要因為不好意思或一時不知道怎麼表達而責怪自己。Luna會先提供有資料支持的醫療回答，再陪妳一步一步整理看診資訊；以下內容不代表診斷。
 ${zhContinuation}
 
 【醫療回答】
 ${plan.direct_zh}${zhDetails}${zhActions}
 ${plan.warning_zh ? `\n【需要儘快就醫的情況】\n${plan.warning_zh}` : ""}
 
+準備看診時，擔心說不完整或被誤解，可能會讓人更緊張；妳不需要為此自責。我們可以一步一步把下面的問題和說明句整理好。
+
 【看診時可以問】
 ${plan.question_zh}
 
-${plan.clinic_script_zh ? `【可直接帶去看診的說明句】\n${plan.clinic_script_zh}\n\n` : ""}${plan.follow_up_zh ? `【若要繼續由 Luna 協助整理】\n${plan.follow_up_zh}\n\n` : ""}${sourceNames ? `資料依據：${sourceNames}\n` : ""}本次使用來源：${sources}
+${plan.clinic_script_zh ? `【可直接帶去看診的說明句】\n${plan.clinic_script_zh}\n\n` : ""}${zhFollowUp ? `【若要繼續由 Luna 協助整理】\n如果一時不知道怎麼回答也沒關係，我們可以慢慢整理。請告訴 Luna：${zhFollowUp}\n\n` : ""}${sourceNames ? `資料依據：${sourceNames}\n` : ""}本次使用來源：${sources}
 ---
-Jika kondisi haid atau kesehatan kewanitaan berubah, wajar bila kamu merasa khawatir, malu, atau tidak yakin. Luna akan memberi jawaban medis yang didukung sumber terlebih dahulu, lalu menemanimu merapikan pilihan berikutnya. Penanganan berbeda menurut penyebabnya, jadi informasi ini bukan diagnosis pribadi.
+Kedengarannya keluhan kesehatan kewanitaan ini, ditambah ketidakpastian apakah perlu periksa atau bagaimana menjelaskannya kepada dokter, bisa membuat kamu tegang dan khawatir. Perasaan seperti itu bisa dipahami. Kamu tidak perlu menyalahkan diri sendiri karena merasa malu atau belum tahu cara menjelaskannya. Luna akan memberi jawaban medis yang didukung sumber, lalu membantu merapikan persiapan periksa pelan-pelan; ini bukan diagnosis pribadi.
 ${idContinuation}
 
 【Jawaban medis】
 ${plan.direct_id}${idDetails}${idActions}
 ${plan.warning_id ? `\n【Kapan perlu segera periksa】\n${plan.warning_id}` : ""}
 
+Menjelang periksa, kekhawatiran tidak bisa menjelaskan dengan lengkap atau takut disalahpahami bisa membuat kamu makin tegang. Kamu tidak perlu menyalahkan diri sendiri; kita bisa merapikan pertanyaan dan kalimat berikut pelan-pelan.
+
 【Pertanyaan yang bisa dibawa saat periksa】
 ${plan.question_id}
 
-${plan.clinic_script_id ? `【Kalimat yang bisa dibawa saat periksa】\n${plan.clinic_script_id}\n\n` : ""}${plan.follow_up_id ? `【Kalau ingin lanjut merapikan bersama Luna】\n${plan.follow_up_id}\n\n` : ""}${sourceNames ? `Dasar sumber: ${sourceNames}\n` : ""}Sumber yang dipakai: ${sources}`;
+${plan.clinic_script_id ? `【Kalimat yang bisa dibawa saat periksa】\n${plan.clinic_script_id}\n\n` : ""}${idFollowUp ? `【Kalau ingin lanjut merapikan bersama Luna】\nKalau belum tahu harus menjawab dari mana, tidak apa-apa. Kita bisa merapikannya pelan-pelan. Ceritakan kepada Luna: ${idFollowUp}\n\n` : ""}${sourceNames ? `Dasar sumber: ${sourceNames}\n` : ""}Sumber yang dipakai: ${sources}`;
 }
 
 function buildControlledRagReply(dbContext = "", retrievedSources = "", answerGoal = "information") {
