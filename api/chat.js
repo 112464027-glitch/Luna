@@ -20,7 +20,7 @@ function getMaxOutputTokensByLevel(ragCondition = "420 筆資料庫") {
     "60": 1450,
     "100": 2000,
     "300": 3200,
-    "420": 1400,
+    "420": 2400,
   }[level] || 1200;
 }
 
@@ -106,7 +106,7 @@ function buildExperimentAnswerContract() {
 2. 醫療回答優先：前兩段先說明可能原因或疾病機轉、現在可做的處理，以及證據支持的治療方向；醫療內容至少占主要回答的六成。不得只教使用者怎麼看醫生。
 3. 就醫賦權輔助：在醫療問題回答完後，才補充症狀紀錄、檢查方向、可詢問醫師的問題與中印尼雙語看診說明句。
 4. 需要儘快就醫的情況：只列與問題或已描述症狀相關的 1–2 個警訊；不要每題都貼完整通用警訊清單。
-5. 本次使用來源：只列實際支持上述內容的 2–3 個 chunk_id，不得列來源網址、內部標籤或未使用片段。
+5. 本次使用來源：只列實際支持上述內容的 3–5 個 chunk_id，不得列來源網址、內部標籤或未使用片段。
 
 嚴格禁止：
 - 輸出「深度回答素材」「Luna 應清楚說」「可用的醫病溝通句」等資料庫內部文字。
@@ -114,7 +114,7 @@ function buildExperimentAnswerContract() {
 - 將「月經」自動等同於 PCOS；資訊不足時最多問一個澄清問題。
 - 中文與印尼文使用不同醫療事實。answer_zh 是內容依據；answer_id 只作為印尼語用詞參考，印尼文必須完整表達與中文相同的事實、警訊、下一步及來源。
 
-一般完整回覆以繁體中文約 350–650 字為原則，印尼文資訊量相等。詳細是指先回答醫療問題，再提供自我處理、治療方向、警訊與必要的就醫賦權資訊，不是加入無關疾病或重複片段。
+一般完整回覆以繁體中文約 500–850 字為原則，印尼文資訊量相等。依序呈現：核心醫療回答、可能原因與判斷線索、現在可做的安全處理、證據支持的治療方向、相關警訊，最後才是必要的就醫賦權資訊。完整不等於推測診斷，也不能加入無關疾病或重複片段。
 `.trim();
 }
 
@@ -153,7 +153,7 @@ function parseEvidenceContext(dbContext = "") {
     })
     .filter((item) => item.chunkId && item.answerZh && item.answerId)
     .filter((item, index, items) => items.findIndex((other) => other.answerZh === item.answerZh) === index)
-    .slice(0, 3);
+    .slice(0, 5);
 }
 
 function getOfficialDialogueSupport(chunkId = "") {
@@ -302,17 +302,33 @@ function buildDeterministicOfficialPlan(dbContext = "") {
   const evidence = parseEvidenceContext(dbContext).filter((item) => /^V[23]-/.test(item.chunkId));
   if (!evidence.length) return null;
   const unique = (items) => [...new Set(items.filter(Boolean))];
+  const uniquePairs = (items) => items.filter((item, index, all) =>
+    item.answerZh && item.answerId && all.findIndex((other) => other.answerZh === item.answerZh) === index
+  );
+  const isWarning = (item) => /紅旗|警訊/.test(item.type);
+  const isAction = (item) => /處理|治療|自我照護|預防|就醫準備/.test(item.type);
   const primary = evidence[0];
   const supporting = evidence.slice(1);
+  const medicalDetails = uniquePairs(supporting.filter((item) => !isWarning(item) && !isAction(item)));
+  const actions = uniquePairs(supporting.filter((item) => !isWarning(item) && isAction(item)));
+  const warnings = uniquePairs(evidence.filter(isWarning));
   const dialogue = getOfficialDialogueSupport(primary.chunkId);
   return {
     insufficient: false,
     direct_zh: primary.answerZh,
     direct_id: primary.answerId,
-    actions_zh: unique(supporting.map((item) => item.answerZh)),
-    actions_id: unique(supporting.map((item) => item.answerId)),
-    warning_zh: unique(evidence.map((item) => item.redFlagsZh)).join("；"),
-    warning_id: unique(evidence.map((item) => item.redFlagsId)).join("; "),
+    medical_details_zh: medicalDetails.map((item) => item.answerZh),
+    medical_details_id: medicalDetails.map((item) => item.answerId),
+    actions_zh: actions.map((item) => item.answerZh),
+    actions_id: actions.map((item) => item.answerId),
+    warning_zh: unique([
+      ...evidence.map((item) => item.redFlagsZh),
+      ...warnings.filter((item) => !item.redFlagsZh).map((item) => item.answerZh),
+    ]).join("；"),
+    warning_id: unique([
+      ...evidence.map((item) => item.redFlagsId),
+      ...warnings.filter((item) => !item.redFlagsId).map((item) => item.answerId),
+    ]).join("; "),
     question_zh: dialogue.questionZh,
     question_id: dialogue.questionId,
     follow_up_zh: dialogue.followUpZh,
@@ -396,14 +412,16 @@ ${dbContext}
 }
 
 function renderGroundedPlan(plan) {
-  const zhActions = plan.actions_zh.length ? `\n【可能原因、處理與治療方向】\n${plan.actions_zh.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
-  const idActions = plan.actions_id.length ? `\n【Kemungkinan penyebab, penanganan, dan arah terapi】\n${plan.actions_id.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
+  const zhDetails = plan.medical_details_zh?.length ? `\n【可能原因與判斷線索】\n${plan.medical_details_zh.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
+  const idDetails = plan.medical_details_id?.length ? `\n【Kemungkinan penyebab dan petunjuk penilaian】\n${plan.medical_details_id.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
+  const zhActions = plan.actions_zh.length ? `\n【現在可做的事與治療方向】\n${plan.actions_zh.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
+  const idActions = plan.actions_id.length ? `\n【Yang bisa dilakukan sekarang dan arah terapi】\n${plan.actions_id.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
   const sources = plan.sources.length ? plan.sources.join("、") : "尚未使用特定片段，等待問題釐清";
   const sourceNames = Array.isArray(plan.source_names) && plan.source_names.length ? plan.source_names.join("；") : "";
   return `婦科或月經狀況出現變化時，感到擔心、尷尬或不確定是可以理解的。Luna會先提供有資料支持的醫療回答，再陪妳一步一步整理後續選項；不同原因的治療方式不同，以下內容不代表替妳診斷。
 
 【醫療回答】
-${plan.direct_zh}${zhActions}
+${plan.direct_zh}${zhDetails}${zhActions}
 ${plan.warning_zh ? `\n【需要儘快就醫的情況】\n${plan.warning_zh}` : ""}
 
 【看診時可以問】
@@ -414,7 +432,7 @@ ${plan.clinic_script_zh ? `【可直接帶去看診的說明句】\n${plan.clini
 Jika kondisi haid atau kesehatan kewanitaan berubah, wajar bila kamu merasa khawatir, malu, atau tidak yakin. Luna akan memberi jawaban medis yang didukung sumber terlebih dahulu, lalu menemanimu merapikan pilihan berikutnya. Penanganan berbeda menurut penyebabnya, jadi informasi ini bukan diagnosis pribadi.
 
 【Jawaban medis】
-${plan.direct_id}${idActions}
+${plan.direct_id}${idDetails}${idActions}
 ${plan.warning_id ? `\n【Kapan perlu segera periksa】\n${plan.warning_id}` : ""}
 
 【Pertanyaan yang bisa dibawa saat periksa】

@@ -728,7 +728,7 @@ function buildContextualRetrievalPrompt(prompt, history = []) {
 
 function buildRetrievedDbContext(prompt, history = []) {
   const retrievalPrompt = buildContextualRetrievalPrompt(prompt, history);
-  const topKByCondition = { none: 0, '20': 2, '60': 3, '100': 3, '300': 3, '420': 3 };
+  const topKByCondition = { none: 0, '20': 2, '60': 3, '100': 3, '300': 3, '420': 5 };
   const hits = retrieveRelevantDbEntries(retrievalPrompt, topKByCondition[ragCondition] || 5);
   const context = hits.map(formatEvidenceEntry).join('\n\n');
   const sources = hits.map(e => getEntryField(e, 'chunk_id') || e.name).join(' ; ');
