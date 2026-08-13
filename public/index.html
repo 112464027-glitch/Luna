@@ -434,8 +434,8 @@ function scoreEntry(promptText, promptTokens, entry) {
   const redWords = ['darah','perdarahan','pingsan','demam','hamil','nyeri','sakit','gatal','bau','keputihan','出血','暈','發燒','懷孕','劇痛','搔癢','異味'];
   if (redWords.some(w => normalizeText(promptText).includes(w)) && /red_flags|tanda bahaya|立即就醫|警訊/i.test(entry.content || '')) score += 4;
   if (/診斷|標準|criteria|kriteria/.test(normalizedPrompt) && /診斷標準|定義/.test(type)) score += 10;
-  if (/怎麼辦|如何|緩解|改善|處理|atasi|mengurangi|apa yang harus/.test(normalizedPrompt) && /治療原則|臨床評估|醫師評估|清潔與自我照護|處理與就醫準備|就醫準備|預防與自我照護/.test(type)) score += 8;
-  if (/不規律|不規則|沒來|遲來|tidak teratur|telat|tidak haid/.test(normalizedPrompt) && /常見症狀|臨床評估|需要排除的原因|定義/.test(type)) score += 7;
+  if (/怎麼辦|如何|緩解|改善|處理|atasi|mengurangi|apa yang harus/.test(normalizedPrompt) && /處理與治療|自我照護|治療原則|臨床評估|醫師評估|清潔與自我照護|處理與就醫準備|就醫準備|預防與自我照護/.test(type)) score += 8;
+  if (/不規律|不規則|沒來|遲來|tidak teratur|telat|tidak haid/.test(normalizedPrompt) && /醫療回答|常見症狀|臨床評估|需要排除的原因|定義/.test(type)) score += 7;
   if (/異味|臭|魚腥|bau|amis|odor/.test(normalizedPrompt) && /細菌性陰道炎|需要就醫警訊|醫師評估/.test(type)) score += 10;
   if (/搔癢|癢|gatal/.test(normalizedPrompt) && /念珠菌感染|需要就醫警訊|醫師評估/.test(type)) score += 10;
   if (/問醫師|看診|就醫準備|tanya dokter|persiapan/.test(normalizedPrompt) && /醫病溝通問法|醫師評估|臨床評估/.test(type)) score += 8;
@@ -443,7 +443,7 @@ function scoreEntry(promptText, promptTokens, entry) {
   if (!/問醫師|看診|就醫準備|tanya dokter|persiapan/.test(normalizedPrompt) && /醫病溝通問法/.test(type)) score -= 3;
   if (!/生育|懷孕|長期|kesuburan|hamil/.test(normalizedPrompt) && /生育與長期影響/.test(type)) score -= 3;
   if (answerGoal === 'action') {
-    if (/治療原則|臨床評估|醫師評估|清潔與自我照護|處理與就醫準備|就醫準備|預防與自我照護/.test(type)) score += 18;
+    if (/處理與治療|自我照護|治療原則|臨床評估|醫師評估|清潔與自我照護|處理與就醫準備|就醫準備|預防與自我照護/.test(type)) score += 18;
     if (/定義|診斷標準|與其他疾病差異/.test(type)) score -= 8;
     if (/記錄|觀察|就醫|評估|回診|catat|periksa|evaluasi/i.test(entry.content || '')) score += 5;
     if (/Rotterdam|AMH|診斷標準/i.test(getEntryField(entry, 'answer_zh')) && !/記錄|觀察|就醫|評估|回診/.test(getEntryField(entry, 'answer_zh'))) score -= 8;
@@ -489,6 +489,25 @@ function getEntryTopicGroup(entry) {
 
 function entryMatchesPromptTopic(entry, topic) {
   if (topic === 'general') return true;
+  const officialBundle = getOfficialEvidenceBundle(entry);
+  const officialTopicBundles = {
+    discharge: ['VAG'],
+    dysmenorrhea: ['DYSM'],
+    cyst: ['CYST'],
+    pcos: ['PCOS'],
+    menopause: ['MENO'],
+    pid: ['PID'],
+    poi: ['POI'],
+    endometriosis: ['ENDO'],
+    contraception: ['CONTRA'],
+    cervical: ['CERVICAL'],
+    abnormal_bleeding: ['AUB'],
+    irregular_menses: ['MEN'],
+    menstruation: ['MEN']
+  };
+  if (officialBundle && officialTopicBundles[topic]) {
+    return officialTopicBundles[topic].includes(officialBundle);
+  }
   const group = getEntryTopicGroup(entry);
   const topicGroups = {
     discharge: ['Q7'],
@@ -505,7 +524,7 @@ function entryMatchesPromptTopic(entry, topic) {
     irregular_menses: ['Q1', 'Q3', 'Q6'],
     menstruation: ['Q1', 'Q3', 'Q4', 'Q6']
   };
-  if (topicGroups[topic]) return topicGroups[topic].includes(group);
+  if (topicGroups[topic]?.includes(group)) return true;
   const text = normalizeText(`${entry.name || ''}\n${entry.content || ''}`);
   const patterns = {
     discharge: /分泌物|白帶|陰道分泌|keputihan|cairan vagina|gatal|搔癢|癢|bau|異味|odor|黴菌|霉菌|細菌性陰道炎|bv|trikomoniasis|vaginitis/,
@@ -525,7 +544,7 @@ function entryMatchesPromptTopic(entry, topic) {
 }
 
 function getEntryField(entry, field) {
-  const match = String(entry.content || '').match(new RegExp(`(?:^|\\n)${field}:\\s*([^\\n]+)`, 'i'));
+  const match = String(entry.content || '').match(new RegExp(`(?:^|\\n)${field}:[ \\t]*([^\\n]+)`, 'i'));
   return match?.[1]?.trim() || '';
 }
 
@@ -551,9 +570,9 @@ function isMedicalEvidenceEntry(entry) {
 
 function getOfficialEvidenceBundle(entry) {
   const chunkId = (getEntryField(entry, 'chunk_id') || '').toUpperCase();
-  if (!chunkId.startsWith('V2-')) return '';
-  if (/^V2-(?:HPV|HPA)-/.test(chunkId)) return 'CERVICAL';
-  return chunkId.match(/^V2-([A-Z]+)-/)?.[1] || '';
+  if (!/^V[23]-/.test(chunkId)) return '';
+  if (/^V[23]-(?:HPV|HPA)-/.test(chunkId)) return 'CERVICAL';
+  return chunkId.match(/^V[23]-([A-Z]+)-/)?.[1] || '';
 }
 
 function selectOfficialBundleEntries(ranked, topK) {
@@ -563,12 +582,15 @@ function selectOfficialBundleEntries(ranked, topK) {
 
   const topChunkId = getEntryField(topEntry, 'chunk_id');
   const typePriority = {
-    '紅旗警訊': 0,
-    '處理與就醫準備': 1,
-    '就醫準備': 2,
-    '臨床評估': 3,
-    '預防與自我照護': 4,
-    '核心回答': 5
+    '處理與治療': 0,
+    '醫療回答': 1,
+    '核心回答': 1,
+    '自我照護': 2,
+    '預防與自我照護': 2,
+    '紅旗警訊': 3,
+    '臨床評估': 4,
+    '處理與就醫準備': 5,
+    '就醫準備': 6
   };
   const siblings = ranked
     .filter(entry => {
@@ -637,7 +659,7 @@ function formatEvidenceEntry(entry, index) {
 
 function getEntryStage(entry) {
   const text = `${entry.name || ''}\n${entry.content || ''}`.toLowerCase();
-  if (/rag_condition:\s*420-official-v2/.test(text)) return '420';
+  if (/rag_condition:\s*420-official-v[23]/.test(text)) return '420';
   if (/plain_id|自然印尼語回答線索/.test(text)) return '120-extra';
   if (/rag_condition:\s*20-doc/.test(text)) return '20';
   if (/rag_condition:\s*60-chunk/.test(text)) return '60';
@@ -972,7 +994,7 @@ function sendChip(btn, text) {
 }
 
 (async function init() {
-  const welcome='嗨，我是 Luna。\n婦科問題可能會讓人緊張或不好意思，你願意說出來很重要。我會陪你把症狀重點、就醫警訊、看診前準備和可詢問醫師的問題整理清楚。\n\n⚠️ 免責聲明：我不是醫師，不能診斷或開藥；若有嚴重疼痛、大量出血、發燒、暈厥、懷孕合併出血或症狀快速惡化，請儘快就醫或急診。\n---\nHalo, aku Luna.\nMasalah kewanitaan bisa bikin cemas atau malu, dan kamu sudah melakukan hal penting dengan mulai cerita. Luna temani kamu merapikan poin gejala, tanda bahaya, persiapan sebelum berobat, dan pertanyaan untuk dokter.\n\n⚠️ Luna bukan dokter, jadi tidak bisa memberi diagnosis atau obat. Kalau nyeri berat, perdarahan banyak, demam, pingsan, sedang hamil lalu keluar darah, atau gejala cepat memburuk, sebaiknya segera ke dokter atau UGD.';
+  const welcome='嗨，我是 Luna。\n婦科問題可能讓人緊張或不好意思，你願意提出來很重要。我會先陪你理解可能原因、現在能做的安全處理、治療方向與警訊，再一起整理看診說明和可詢問醫師的問題。\n\n⚠️ 免責聲明：我不是醫師，不能診斷或開藥；若有嚴重疼痛、大量出血、發燒、暈厥、懷孕合併出血或症狀快速惡化，請儘快就醫或急診。\n---\nHalo, aku Luna.\nMasalah kewanitaan bisa membuat cemas atau malu, dan kamu sudah melakukan hal penting dengan mulai bertanya. Luna akan menemanimu memahami kemungkinan penyebab, langkah aman, arah terapi, dan tanda bahaya terlebih dahulu, lalu merapikan penjelasan serta pertanyaan untuk dokter.\n\n⚠️ Luna bukan dokter, jadi tidak bisa memberi diagnosis atau resep. Kalau nyeri berat, perdarahan banyak, demam, pingsan, sedang hamil lalu keluar darah, atau gejala cepat memburuk, segera cari pertolongan medis.';
   addMessage('bot', welcome);
   // Show quick chips
   const chips = [
