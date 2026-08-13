@@ -422,8 +422,11 @@ function scoreEntry(promptText, promptTokens, entry) {
   const entryTokens = new Set(tokenize(text));
   const normalizedPrompt = normalizeText(promptText);
   const type = getEntryField(entry, 'type');
+  const entryQuestion = normalizeText(getEntryField(entry, 'question'));
   const answerGoal = detectAnswerGoal(promptText);
   let score = 0;
+  if (entryQuestion && normalizedPrompt === entryQuestion) score += 60;
+  else if (entryQuestion && (entryQuestion.includes(normalizedPrompt) || normalizedPrompt.includes(entryQuestion))) score += 24;
   for (const tok of promptTokens) {
     if (entryTokens.has(tok)) score += tok.length >= 5 ? 3 : 1;
     if ((entry.content || '').toLowerCase().includes(tok)) score += 0.5;
@@ -431,7 +434,7 @@ function scoreEntry(promptText, promptTokens, entry) {
   const redWords = ['darah','perdarahan','pingsan','demam','hamil','nyeri','sakit','gatal','bau','keputihan','出血','暈','發燒','懷孕','劇痛','搔癢','異味'];
   if (redWords.some(w => normalizeText(promptText).includes(w)) && /red_flags|tanda bahaya|立即就醫|警訊/i.test(entry.content || '')) score += 4;
   if (/診斷|標準|criteria|kriteria/.test(normalizedPrompt) && /診斷標準|定義/.test(type)) score += 10;
-  if (/怎麼辦|如何|緩解|改善|處理|atasi|mengurangi|apa yang harus/.test(normalizedPrompt) && /治療原則|臨床評估|醫師評估|清潔與自我照護/.test(type)) score += 8;
+  if (/怎麼辦|如何|緩解|改善|處理|atasi|mengurangi|apa yang harus/.test(normalizedPrompt) && /治療原則|臨床評估|醫師評估|清潔與自我照護|處理與就醫準備|就醫準備|預防與自我照護/.test(type)) score += 8;
   if (/不規律|不規則|沒來|遲來|tidak teratur|telat|tidak haid/.test(normalizedPrompt) && /常見症狀|臨床評估|需要排除的原因|定義/.test(type)) score += 7;
   if (/異味|臭|魚腥|bau|amis|odor/.test(normalizedPrompt) && /細菌性陰道炎|需要就醫警訊|醫師評估/.test(type)) score += 10;
   if (/搔癢|癢|gatal/.test(normalizedPrompt) && /念珠菌感染|需要就醫警訊|醫師評估/.test(type)) score += 10;
@@ -440,7 +443,7 @@ function scoreEntry(promptText, promptTokens, entry) {
   if (!/問醫師|看診|就醫準備|tanya dokter|persiapan/.test(normalizedPrompt) && /醫病溝通問法/.test(type)) score -= 3;
   if (!/生育|懷孕|長期|kesuburan|hamil/.test(normalizedPrompt) && /生育與長期影響/.test(type)) score -= 3;
   if (answerGoal === 'action') {
-    if (/治療原則|臨床評估|醫師評估|清潔與自我照護/.test(type)) score += 18;
+    if (/治療原則|臨床評估|醫師評估|清潔與自我照護|處理與就醫準備|就醫準備|預防與自我照護/.test(type)) score += 18;
     if (/定義|診斷標準|與其他疾病差異/.test(type)) score -= 8;
     if (/記錄|觀察|就醫|評估|回診|catat|periksa|evaluasi/i.test(entry.content || '')) score += 5;
     if (/Rotterdam|AMH|診斷標準/i.test(getEntryField(entry, 'answer_zh')) && !/記錄|觀察|就醫|評估|回診/.test(getEntryField(entry, 'answer_zh'))) score -= 8;
@@ -451,10 +454,14 @@ function scoreEntry(promptText, promptTokens, entry) {
 function detectPromptTopic(promptText) {
   const text = normalizeText(promptText);
   if (/分泌物|白帶|陰道分泌|keputihan|cairan vagina|vagina discharge|gatal|搔癢|癢|bau|異味|odor|黴菌|霉菌|細菌性陰道炎|bv/.test(text)) return 'discharge';
+  if (/經血|大量出血|非經期出血|性交後出血|perdarahan|darah haid/.test(text)) return 'abnormal_bleeding';
   if (/痛經|經痛|nyeri haid|dismenore|haid sakit|腹痛/.test(text)) return 'dysmenorrhea';
   if (/pcos|多囊|polikistik|rotterdam/.test(text)) return 'pcos';
   if (/更年期|停經|menopause|hot flash|熱潮紅/.test(text)) return 'menopause';
   if (/pid|骨盆腔發炎|radang panggul/.test(text)) return 'pid';
+  if (/子宮內膜異位|endometriosis/.test(text)) return 'endometriosis';
+  if (/避孕|避孕藥|保險套|contraception|kontrasepsi|kondom|keluarga berencana/.test(text)) return 'contraception';
+  if (/子宮頸|抹片|hpv|pap smear|kanker serviks|serviks/.test(text)) return 'cervical';
   if (/囊腫|kista|cyst/.test(text)) return 'cyst';
   if (/卵巢早衰|poi|ovarium primer|premature ovarian/.test(text)) return 'poi';
   if (/月經不規則|月經不規律|經期不規則|經期不規律|月經沒來|月經遲來|無月經|haid tidak teratur|telat haid|tidak haid/.test(text)) return 'irregular_menses';
@@ -464,7 +471,7 @@ function detectPromptTopic(promptText) {
 
 function detectAnswerGoal(promptText) {
   const text = normalizeText(promptText);
-  if (/怎麼辦|如何處理|如何改善|如何緩解|該做什麼|apa yang harus|bagaimana mengatasi|cara mengurangi/.test(text)) return 'action';
+  if (/怎麼辦|如何處理|如何改善|如何緩解|該做什麼|自己買藥|可以買藥|apa yang harus|bagaimana mengatasi|cara mengurangi|boleh.*obat|apa boleh/.test(text)) return 'action';
   if (/診斷|標準|criteria|kriteria|是不是|是否為/.test(text)) return 'diagnosis';
   if (/症狀|表現|tanda|gejala/.test(text)) return 'symptoms';
   if (/看診|問醫師|就醫準備|tanya dokter|persiapan/.test(text)) return 'consultation';
@@ -473,11 +480,11 @@ function detectAnswerGoal(promptText) {
 
 function needsPromptClarification(promptText) {
   const text = normalizeText(promptText).replace(/[？?！!。，,、\s]/g, '');
-  return /^(月經|經期|月經問題|想問月經|我想問月經|月經怎麼辦|經期怎麼辦|月經該怎麼辦|haid|menstruasi|soalhaid|haidbagaimana|haidharusbagaimana)$/.test(text);
+  return /^(月經|經期|月經問題|想問月經|我想問月經|haid|menstruasi|soalhaid)$/.test(text);
 }
 
 function getEntryTopicGroup(entry) {
-  return (String(entry.name || '').match(/^(Q[1-7])-/i)?.[1] || '').toUpperCase();
+  return (String(entry.name || '').match(/^(Q(?:10|[1-9]))-/i)?.[1] || '').toUpperCase();
 }
 
 function entryMatchesPromptTopic(entry, topic) {
@@ -491,7 +498,11 @@ function entryMatchesPromptTopic(entry, topic) {
     menopause: ['Q4'],
     pid: ['Q5'],
     poi: ['Q6'],
-    irregular_menses: ['Q3', 'Q6'],
+    endometriosis: ['Q8'],
+    contraception: ['Q9'],
+    cervical: ['Q10'],
+    abnormal_bleeding: ['Q1'],
+    irregular_menses: ['Q1', 'Q3', 'Q6'],
     menstruation: ['Q1', 'Q3', 'Q4', 'Q6']
   };
   if (topicGroups[topic]) return topicGroups[topic].includes(group);
@@ -503,6 +514,10 @@ function entryMatchesPromptTopic(entry, topic) {
     pcos: /pcos|多囊|polikistik|rotterdam/,
     menopause: /更年期|停經|menopause|hot flash|熱潮紅/,
     pid: /pid|骨盆腔發炎|radang panggul|pelvic inflammatory/,
+    endometriosis: /子宮內膜異位|endometriosis/,
+    contraception: /避孕|避孕藥|保險套|contraception|kontrasepsi|kondom|keluarga berencana/,
+    cervical: /子宮頸|抹片|hpv|pap smear|kanker serviks|serviks/,
+    abnormal_bleeding: /經血|大量出血|非經期出血|性交後出血|perdarahan|darah haid/,
     cyst: /囊腫|kista|cyst/,
     poi: /卵巢早衰|poi|primary ovarian insufficiency|premature ovarian/
   };
@@ -571,10 +586,13 @@ function formatEvidenceEntry(entry, index) {
   const fields = {
     chunk_id: getEntryField(entry, 'chunk_id') || entry.name,
     title: getEntryField(entry, 'title') || entry.name,
+    question: getEntryField(entry, 'question'),
     type: getEntryField(entry, 'type'),
     answer_zh: cleanEvidenceText(getEntryField(entry, 'answer_zh')),
     answer_id: cleanEvidenceText(getEntryField(entry, 'answer_id')),
-    red_flags: cleanEvidenceText(getEntryField(entry, 'red_flags')),
+    red_flags_zh: cleanEvidenceText(getEntryField(entry, 'red_flags_zh') || getEntryField(entry, 'red_flags')),
+    red_flags_id: cleanEvidenceText(getEntryField(entry, 'red_flags_id')),
+    source_name: getEntryField(entry, 'source_name'),
     source_url: getEntryField(entry, 'source_url')
   };
   return [`【證據 ${index + 1}】`, ...Object.entries(fields).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`)].join('\n');
@@ -582,6 +600,7 @@ function formatEvidenceEntry(entry, index) {
 
 function getEntryStage(entry) {
   const text = `${entry.name || ''}\n${entry.content || ''}`.toLowerCase();
+  if (/rag_condition:\s*420-official-v2/.test(text)) return '420';
   if (/plain_id|自然印尼語回答線索/.test(text)) return '120-extra';
   if (/rag_condition:\s*20-doc/.test(text)) return '20';
   if (/rag_condition:\s*60-chunk/.test(text)) return '60';
@@ -600,7 +619,7 @@ function getCandidateDbEntries() {
     const stage = getEntryStage(e);
     if (ragCondition === '20') return stage === '20';
     if (ragCondition === '60') return stage === '60';
-    if (ragCondition === '100') return stage !== '120-extra';
+    if (ragCondition === '100') return ['20','60','100'].includes(stage);
     if (ragCondition === '300') return ['20','60','100','300'].includes(stage);
     if (ragCondition === '420') return true;
     return false;
@@ -617,7 +636,7 @@ function retrieveRelevantDbEntries(prompt, topK = 5) {
     const stage = getEntryStage(e);
     if (ragCondition === '20') return stage === '20';
     if (ragCondition === '60') return stage === '60';
-    if (ragCondition === '100') return stage !== '120-extra';
+    if (ragCondition === '100') return ['20','60','100'].includes(stage);
     if (ragCondition === '300') return ['20','60','100','300'].includes(stage);
     if (ragCondition === '420') return true;
     return false;
@@ -628,7 +647,11 @@ function retrieveRelevantDbEntries(prompt, topK = 5) {
   const ranked = candidates
     .map(e => ({ ...e, _score: scoreEntry(prompt, promptTokens, e) }))
     .sort((a, b) => b._score - a._score);
-  return selectDiverseEntries(ranked, topK, topic);
+  const topScore = ranked[0]?._score || 0;
+  const confidenceFiltered = topScore >= 60
+    ? ranked.filter(e => e._score >= topScore - 25 && e._score > 0)
+    : ranked;
+  return selectDiverseEntries(confidenceFiltered, topK, topic);
 }
 
 function buildRetrievedDbContext(prompt) {
@@ -898,7 +921,7 @@ function sendChip(btn, text) {
 }
 
 (async function init() {
-  const welcome='嗨，我是 Luna 🌸\n你可以慢慢說，不用急，也不用覺得不好意思。婦科問題本來就很私密，我會陪你一起整理，看哪些地方需要注意、什麼時候要儘快就醫。\n\n⚠️ 免責聲明：我不是醫師，不能診斷或開藥；若有嚴重疼痛、大量出血、發燒、暈厥、懷孕合併出血或症狀快速惡化，請儘快就醫或急診。\n---\nHai sayang, aku Luna 🌸\nCerita pelan-pelan saja ya, tidak perlu malu. Masalah kewanitaan memang kadang bikin cemas. Luna temani kamu rapikan dulu, lihat mana yang perlu diperhatikan dan kapan sebaiknya segera periksa.\n\n⚠️ Luna bukan dokter, jadi tidak bisa memberi diagnosis atau obat. Kalau nyeri berat, perdarahan banyak, demam, pingsan, sedang hamil lalu keluar darah, atau gejala cepat memburuk, sebaiknya segera ke dokter atau UGD.';
+  const welcome='嗨，我是 Luna。\n婦科問題可能會讓人緊張或不好意思，你願意說出來很重要。我會陪你把症狀重點、就醫警訊、看診前準備和可詢問醫師的問題整理清楚。\n\n⚠️ 免責聲明：我不是醫師，不能診斷或開藥；若有嚴重疼痛、大量出血、發燒、暈厥、懷孕合併出血或症狀快速惡化，請儘快就醫或急診。\n---\nHalo, aku Luna.\nMasalah kewanitaan bisa bikin cemas atau malu, dan kamu sudah melakukan hal penting dengan mulai cerita. Luna temani kamu merapikan poin gejala, tanda bahaya, persiapan sebelum berobat, dan pertanyaan untuk dokter.\n\n⚠️ Luna bukan dokter, jadi tidak bisa memberi diagnosis atau obat. Kalau nyeri berat, perdarahan banyak, demam, pingsan, sedang hamil lalu keluar darah, atau gejala cepat memburuk, sebaiknya segera ke dokter atau UGD.';
   addMessage('bot', welcome);
   // Show quick chips
   const chips = [

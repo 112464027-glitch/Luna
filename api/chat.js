@@ -145,7 +145,8 @@ function parseEvidenceContext(dbContext = "") {
         chunkId: field("chunk_id"),
         answerZh: field("answer_zh"),
         answerId: field("answer_id"),
-        redFlags: field("red_flags"),
+        redFlagsZh: field("red_flags_zh") || field("red_flags"),
+        redFlagsId: field("red_flags_id"),
       };
     })
     .filter((item) => item.chunkId && item.answerZh && item.answerId)
@@ -262,7 +263,8 @@ function buildControlledRagReply(dbContext = "", retrievedSources = "", answerGo
   if (!evidence.length) return "";
   const zhFacts = evidence.map((item, index) => `${index + 1}. ${item.answerZh}`).join("\n");
   const idFacts = evidence.map((item, index) => `${index + 1}. ${item.answerId}`).join("\n");
-  const warning = evidence.find((item) => item.redFlags)?.redFlags || "";
+  const warningZh = evidence.find((item) => item.redFlagsZh)?.redFlagsZh || "";
+  const warningId = evidence.find((item) => item.redFlagsId)?.redFlagsId || "";
   const sources = evidence.map((item) => item.chunkId).join("、") || retrievedSources;
 
   if (answerGoal === "action") {
@@ -271,7 +273,7 @@ function buildControlledRagReply(dbContext = "", retrievedSources = "", answerGo
 【現在可以做】
 1. 先記錄症狀開始時間、月經週期或發作頻率、嚴重程度，以及同時出現的疼痛、出血或分泌物變化。
 2. 如果不知道下一步也沒關係，可以帶著紀錄諮詢婦產科；若症狀持續、加劇或符合下列警訊，則不要延後就醫。
-${warning ? `\n【需要注意】\n${warning}` : ""}
+${warningZh ? `\n【需要注意】\n${warningZh}` : ""}
 
 【資料庫提供的相關評估方向】
 ${zhFacts}
@@ -285,7 +287,7 @@ Kalau belum tahu harus bagaimana menghadapi keluhan haid atau kesehatan kewanita
 【Yang bisa dilakukan sekarang】
 1. Catat kapan keluhan mulai, pola haid atau seberapa sering muncul, tingkat keparahan, serta perubahan nyeri, perdarahan, atau keputihan yang menyertai.
 2. Kalau belum tahu langkah berikutnya, tidak apa-apa. Bawa catatan itu saat berkonsultasi dengan dokter kandungan. Jika keluhan menetap, memburuk, atau ada tanda bahaya di bawah ini, jangan menunda pemeriksaan.
-${warning ? "\n【Hal yang perlu diperhatikan】\nJika keluhan menetap, memburuk, atau disertai tanda bahaya pada informasi di atas, sebaiknya segera periksa." : ""}
+${warningId ? `\n【Hal yang perlu diperhatikan】\n${warningId}` : ""}
 
 【Arah penilaian dari basis data】
 ${idFacts}
@@ -299,7 +301,7 @@ Sumber yang dipakai: ${sources}`;
 
 【資料庫重點】
 ${zhFacts}
-${warning ? `\n【需要注意】\n${warning}` : ""}
+${warningZh ? `\n【需要注意】\n${warningZh}` : ""}
 
 如果一時不知道從哪裡開始也沒關係，可以先記錄月經週期與伴隨症狀，再把上述重點帶去婦產科詢問。我們先把資訊整理清楚，讓妳看診時比較容易表達。
 
@@ -311,7 +313,7 @@ Keluhan haid atau kesehatan kewanitaan bisa membuat seseorang merasa khawatir at
 
 【Poin dari basis data】
 ${idFacts}
-${warning ? "\n【Hal yang perlu diperhatikan】\nJika keluhan menetap, memburuk, atau disertai tanda bahaya yang disebutkan pada informasi di atas, sebaiknya periksa ke dokter kandungan." : ""}
+${warningId ? `\n【Hal yang perlu diperhatikan】\n${warningId}` : ""}
 
 Kalau belum tahu harus mulai dari mana, tidak apa-apa. Kamu bisa mencatat pola haid dan gejala yang menyertai, lalu membawa poin di atas saat berkonsultasi dengan dokter kandungan. Kita rapikan informasinya dulu agar kamu lebih mudah menjelaskannya saat periksa.
 
