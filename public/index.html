@@ -690,8 +690,8 @@ function getCandidateDbEntries() {
   return candidates.slice(0, Math.min(maxByCondition[ragCondition] || candidates.length, candidates.length));
 }
 
-function retrieveRelevantDbEntries(prompt, topK = 5) {
-  const topic = detectPromptTopic(prompt);
+function retrieveRelevantDbEntries(prompt, topK = 5, topicOverride = '') {
+  const topic = topicOverride || detectPromptTopic(prompt);
   let candidates = dbEntries.filter(e => {
     const stage = getEntryStage(e);
     if (ragCondition === '20') return stage === '20';
@@ -716,24 +716,39 @@ function retrieveRelevantDbEntries(prompt, topK = 5) {
   return selectDiverseEntries(confidenceFiltered, topK, topic);
 }
 
-function buildContextualRetrievalPrompt(prompt, history = []) {
+function getContinuationContext(prompt, history = []) {
   const currentTopic = detectPromptTopic(prompt);
-  const isFollowUp = currentTopic === 'general' && (/^(那|所以|這樣|如果|還是|可是|需要|可以|多久|為什麼|怎麼|要不要|apakah|kalau|jadi|berapa|mengapa)/i.test(prompt.trim()) || prompt.trim().length <= 24);
-  if (!isFollowUp) return prompt;
-  const previousUser = history
-    .slice(0, -1)
-    .reverse()
-    .find(message => message.role === 'user' && message.text && message.text.trim() !== prompt.trim());
-  return previousUser ? `${previousUser.text}\n後續追問：${prompt}` : prompt;
+  const priorMessages = history.slice(0, -1);
+  const previousUser = [...priorMessages].reverse().find(message => message.role === 'user' && message.text && message.text.trim() !== prompt.trim());
+  const previousModel = [...priorMessages].reverse().find(message => message.role === 'model' && message.text);
+  const previousTopic = previousUser ? detectPromptTopic(previousUser.text) : 'general';
+  const keepsPreviousTopic = currentTopic === 'general' || currentTopic === previousTopic;
+  const shortFollowUp = /^(那|所以|這樣|如果|還是|可是|需要|可以|多久|為什麼|怎麼|要不要|apakah|kalau|jadi|berapa|mengapa)/i.test(prompt.trim()) || prompt.trim().length <= 24;
+  const detailSignals = /\d|最後一次|週期|天|週|月|開始|持續|沒有|不確定|疼痛|痛|出血|血塊|分泌物|氣味|顏色|發燒|懷孕|sejak|hari|minggu|bulan|siklus|tidak|ada|nyeri|darah|keputihan|bau|warna|demam|hamil/i.test(prompt);
+  const offeredContinuation = /【若要繼續由 Luna 協助整理】|【Kalau ingin lanjut merapikan bersama Luna】/.test(previousModel?.text || '');
+  const looksLikeNewQuestion = /怎麼辦|如何|為什麼|是什麼|需要嗎|可以嗎|(?:^|\s)(?:apa|bagaimana|mengapa)(?:\s|$)/i.test(prompt);
+  const isContinuation = Boolean(previousUser) && ((keepsPreviousTopic && shortFollowUp) || (offeredContinuation && detailSignals && !looksLikeNewQuestion));
+  return {
+    isContinuation,
+    previousQuestion: isContinuation ? previousUser.text.trim() : '',
+    previousTopic: isContinuation ? previousTopic : '',
+    retrievalPrompt: isContinuation ? `${previousUser.text}\n使用者補充：${prompt}` : prompt
+  };
+}
+
+function buildContextualRetrievalPrompt(prompt, history = []) {
+  return getContinuationContext(prompt, history).retrievalPrompt;
 }
 
 function buildRetrievedDbContext(prompt, history = []) {
-  const retrievalPrompt = buildContextualRetrievalPrompt(prompt, history);
+  const continuation = getContinuationContext(prompt, history);
+  const retrievalPrompt = continuation.retrievalPrompt;
   const topKByCondition = { none: 0, '20': 2, '60': 3, '100': 3, '300': 3, '420': 5 };
-  const hits = retrieveRelevantDbEntries(retrievalPrompt, topKByCondition[ragCondition] || 5);
+  const retrievalTopic = continuation.previousTopic || detectPromptTopic(retrievalPrompt);
+  const hits = retrieveRelevantDbEntries(retrievalPrompt, topKByCondition[ragCondition] || 5, retrievalTopic);
   const context = hits.map(formatEvidenceEntry).join('\n\n');
   const sources = hits.map(e => getEntryField(e, 'chunk_id') || e.name).join(' ; ');
-  return { context, hits, sources, condition: ragCondition, conditionLabel: getConditionLabel(), intent: detectPromptTopic(retrievalPrompt), answerGoal: detectAnswerGoal(prompt), needsClarification: needsPromptClarification(prompt) };
+  return { context, hits, sources, condition: ragCondition, conditionLabel: getConditionLabel(), intent: retrievalTopic, answerGoal: detectAnswerGoal(prompt), needsClarification: needsPromptClarification(prompt), isContinuation: continuation.isContinuation, previousQuestion: continuation.previousQuestion };
 }
 
 // ══════════════════════════════════════════════
@@ -789,7 +804,7 @@ async function sendMessage() {
   try {
     const res = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({prompt, history:chatHistory.slice(-12), dbContext, retrievedSources: rag.sources, ragCondition: rag.conditionLabel, queryIntent: rag.intent, answerGoal: rag.answerGoal, needsClarification: rag.needsClarification})
+      body: JSON.stringify({prompt, history:chatHistory.slice(-12), dbContext, retrievedSources: rag.sources, ragCondition: rag.conditionLabel, queryIntent: rag.intent, answerGoal: rag.answerGoal, needsClarification: rag.needsClarification, isContinuation: rag.isContinuation, previousQuestion: rag.previousQuestion})
     });
     removeTyping();
     if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'伺服器錯誤'); }

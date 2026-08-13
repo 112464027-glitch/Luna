@@ -103,7 +103,7 @@ function buildExperimentAnswerContract() {
 
 作答前先在內部形成相同的醫療內容計畫，再套用本組語氣；不要輸出計畫本身：
 1. 問題重點：只回答使用者真正詢問的主題，不可因片段提到 PCOS、POI 或其他疾病就自行改題或暗示診斷。
-2. 醫療回答優先：前兩段先說明可能原因或疾病機轉、現在可做的處理，以及證據支持的治療方向；醫療內容至少占主要回答的六成。不得只教使用者怎麼看醫生。
+2. 醫療回答優先：「醫療回答」先用一個連貫段落整合核心說明、主要原因、現在可做的處理與證據支持的治療方向；該段約 280–450 個中文字，視覺上至少約四行。不得改成四個短條列，也不得只教使用者怎麼看醫生。
 3. 就醫賦權輔助：在醫療問題回答完後，才補充症狀紀錄、檢查方向、可詢問醫師的問題與中印尼雙語看診說明句。
 4. 需要儘快就醫的情況：只列與問題或已描述症狀相關的 1–2 個警訊；不要每題都貼完整通用警訊清單。
 5. 本次使用來源：只列實際支持上述內容的 3–5 個 chunk_id，不得列來源網址、內部標籤或未使用片段。
@@ -309,14 +309,21 @@ function buildDeterministicOfficialPlan(dbContext = "") {
   const isAction = (item) => /處理|治療|自我照護|預防|就醫準備/.test(item.type);
   const primary = evidence[0];
   const supporting = evidence.slice(1);
-  const medicalDetails = uniquePairs(supporting.filter((item) => !isWarning(item) && !isAction(item)));
-  const actions = uniquePairs(supporting.filter((item) => !isWarning(item) && isAction(item)));
+  const paragraphPairs = [primary];
+  for (const item of supporting.filter((entry) => !isWarning(entry))) {
+    if (paragraphPairs.map((entry) => entry.answerZh).join("").length >= 280 || paragraphPairs.length >= 3) break;
+    paragraphPairs.push(item);
+  }
+  const paragraphChunkIds = new Set(paragraphPairs.map((item) => item.chunkId));
+  const remainingSupporting = supporting.filter((item) => !paragraphChunkIds.has(item.chunkId));
+  const medicalDetails = uniquePairs(remainingSupporting.filter((item) => !isWarning(item) && !isAction(item)));
+  const actions = uniquePairs(remainingSupporting.filter((item) => !isWarning(item) && isAction(item)));
   const warnings = uniquePairs(evidence.filter(isWarning));
   const dialogue = getOfficialDialogueSupport(primary.chunkId);
   return {
     insufficient: false,
-    direct_zh: primary.answerZh,
-    direct_id: primary.answerId,
+    direct_zh: paragraphPairs.map((item) => item.answerZh).join(""),
+    direct_id: paragraphPairs.map((item) => item.answerId).join(" "),
     medical_details_zh: medicalDetails.map((item) => item.answerZh),
     medical_details_id: medicalDetails.map((item) => item.answerId),
     actions_zh: actions.map((item) => item.answerZh),
@@ -381,8 +388,8 @@ ${dbContext}
 只輸出 JSON，格式如下：
 {
   "insufficient": false,
-  "direct_zh": "先直接回答使用者真正問的問題，1至2句",
-  "direct_id": "與中文相同意思的自然印尼文",
+  "direct_zh": "用一個約280至450個中文字的連貫段落，整合核心回答、主要原因、可做處理與治療方向，不使用條列",
+  "direct_id": "與中文相同事實與資訊量的自然印尼文連貫段落",
   "actions_zh": ["最多3項具體、可執行且由證據支持的下一步"],
   "actions_id": ["與中文逐項相同意思的自然印尼文"],
   "warning_zh": "最多2項相關警訊；沒有則空字串",
@@ -393,7 +400,7 @@ ${dbContext}
 }
 
 規則：
-1. 「怎麼辦」必須先回答可能原因、現在可做的安全處理及證據支持的治療方向；就醫準備放在醫療回答之後，不能只解釋定義或只教怎麼看醫生。
+1. 「怎麼辦」的醫療回答必須是一個連貫長段落，先回答可能原因、現在可做的安全處理及證據支持的治療方向；就醫準備放在醫療回答之後，不能只解釋定義或只教怎麼看醫生。
 2. 不診斷使用者，不把 PCOS、POI 或其他疾病當成既定答案。
 3. 若證據只支持評估方向、不支持治療，就明確說需要哪些資訊或醫療評估，不得虛構治療。
 4. sources 只能從 ${allowedSources.join("、")} 選擇。
@@ -411,14 +418,23 @@ ${dbContext}
   return { ...plan, actions_zh: actionsZh, actions_id: actionsId, sources: usedSources };
 }
 
-function renderGroundedPlan(plan) {
+function renderGroundedPlan(plan, continuation = {}) {
   const zhDetails = plan.medical_details_zh?.length ? `\n【可能原因與判斷線索】\n${plan.medical_details_zh.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
   const idDetails = plan.medical_details_id?.length ? `\n【Kemungkinan penyebab dan petunjuk penilaian】\n${plan.medical_details_id.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
   const zhActions = plan.actions_zh.length ? `\n【現在可做的事與治療方向】\n${plan.actions_zh.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
   const idActions = plan.actions_id.length ? `\n【Yang bisa dilakukan sekarang dan arah terapi】\n${plan.actions_id.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
   const sources = plan.sources.length ? plan.sources.join("、") : "尚未使用特定片段，等待問題釐清";
   const sourceNames = Array.isArray(plan.source_names) && plan.source_names.length ? plan.source_names.join("；") : "";
+  const supplementalText = String(continuation.prompt || "").trim().slice(0, 600);
+  const previousQuestion = String(continuation.previousQuestion || "").trim().slice(0, 240);
+  const zhContinuation = continuation.isContinuation && supplementalText
+    ? `\n\n【已承接妳補充的資料】\n上一題：${previousQuestion}\n本次補充：${supplementalText}\nLuna 已沿用上一題的婦科主題，並把本次資料納入重新檢索與警訊整理。`
+    : "";
+  const idContinuation = continuation.isContinuation && supplementalText
+    ? `\n\n【Informasi tambahan sudah diteruskan】\nPertanyaan sebelumnya: ${previousQuestion}\nTambahan kali ini: ${supplementalText}\nLuna mempertahankan topik sebelumnya dan memakai informasi tambahan ini untuk mencari ulang informasi medis serta tanda bahaya yang relevan.`
+    : "";
   return `婦科或月經狀況出現變化時，感到擔心、尷尬或不確定是可以理解的。Luna會先提供有資料支持的醫療回答，再陪妳一步一步整理後續選項；不同原因的治療方式不同，以下內容不代表替妳診斷。
+${zhContinuation}
 
 【醫療回答】
 ${plan.direct_zh}${zhDetails}${zhActions}
@@ -430,6 +446,7 @@ ${plan.question_zh}
 ${plan.clinic_script_zh ? `【可直接帶去看診的說明句】\n${plan.clinic_script_zh}\n\n` : ""}${plan.follow_up_zh ? `【若要繼續由 Luna 協助整理】\n${plan.follow_up_zh}\n\n` : ""}${sourceNames ? `資料依據：${sourceNames}\n` : ""}本次使用來源：${sources}
 ---
 Jika kondisi haid atau kesehatan kewanitaan berubah, wajar bila kamu merasa khawatir, malu, atau tidak yakin. Luna akan memberi jawaban medis yang didukung sumber terlebih dahulu, lalu menemanimu merapikan pilihan berikutnya. Penanganan berbeda menurut penyebabnya, jadi informasi ini bukan diagnosis pribadi.
+${idContinuation}
 
 【Jawaban medis】
 ${plan.direct_id}${idDetails}${idActions}
@@ -754,7 +771,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: "伺服器設定錯誤：缺少 API 金鑰" });
   }
 
-  const { prompt, history = [], dbContext = "", retrievedSources = "", ragCondition = "420 筆資料庫", queryIntent = "general", answerGoal = "information", needsClarification = false } = req.body;
+  const { prompt, history = [], dbContext = "", retrievedSources = "", ragCondition = "420 筆資料庫", queryIntent = "general", answerGoal = "information", needsClarification = false, isContinuation = false, previousQuestion = "" } = req.body;
 
   if (!prompt || typeof prompt !== "string" || prompt.trim() === "") {
     return res.status(400).json({ error: "請提供有效的 prompt" });
@@ -771,10 +788,10 @@ module.exports = async (req, res) => {
     try {
       const officialPlan = buildDeterministicOfficialPlan(dbContext);
       if (officialPlan) {
-        return res.status(200).json({ reply: ensureSafetyBoundary(renderGroundedPlan(officialPlan)), controlledRag: true, deterministicOfficial: true, insufficient: false });
+        return res.status(200).json({ reply: ensureSafetyBoundary(renderGroundedPlan(officialPlan, { prompt, isContinuation, previousQuestion })), controlledRag: true, deterministicOfficial: true, insufficient: false });
       }
       const plan = await buildGroundedContentPlan(prompt.trim(), dbContext, queryIntent, answerGoal);
-      return res.status(200).json({ reply: ensureSafetyBoundary(renderGroundedPlan(plan)), controlledRag: true, insufficient: Boolean(plan.insufficient) });
+      return res.status(200).json({ reply: ensureSafetyBoundary(renderGroundedPlan(plan, { prompt, isContinuation, previousQuestion })), controlledRag: true, insufficient: Boolean(plan.insufficient) });
     } catch (err) {
       console.error("Grounded RAG planning error:", err);
       return res.status(503).json({ error: "目前無法根據命中的資料可靠回答。為避免答非所問或虛構內容，本輪不會產生回答，也不會寫入實驗紀錄；請重新描述症狀後再送出。" });
