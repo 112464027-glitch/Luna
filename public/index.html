@@ -578,7 +578,7 @@ function getOfficialEvidenceBundle(entry) {
 function selectOfficialBundleEntries(ranked, topK) {
   const topEntry = ranked[0];
   const bundle = getOfficialEvidenceBundle(topEntry);
-  if (!topEntry || !bundle || topEntry._score < 60) return [];
+  if (!topEntry || !bundle || topEntry._score < 30) return [];
 
   const topChunkId = getEntryField(topEntry, 'chunk_id');
   const typePriority = {
