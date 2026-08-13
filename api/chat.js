@@ -423,6 +423,8 @@ function renderGroundedPlan(plan, continuation = {}) {
   const idDetails = plan.medical_details_id?.length ? `\n【Kemungkinan penyebab dan petunjuk penilaian】\n${plan.medical_details_id.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
   const zhActions = plan.actions_zh.length ? `\n【現在可做的事與治療方向】\n${plan.actions_zh.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
   const idActions = plan.actions_id.length ? `\n【Yang bisa dilakukan sekarang dan arah terapi】\n${plan.actions_id.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
+  const zhMedicalLead = "看到不同的可能原因與處理方向時，感到不安或不知道該先注意什麼是可以理解的。我們先慢慢把醫療重點整理清楚。";
+  const idMedicalLead = "Melihat berbagai kemungkinan penyebab dan penanganan bisa membuat kamu cemas atau bingung harus memperhatikan yang mana dulu. Perasaan itu bisa dipahami; kita rapikan dulu informasi medisnya pelan-pelan.";
   const sources = plan.sources.length ? plan.sources.join("、") : "尚未使用特定片段，等待問題釐清";
   const sourceNames = Array.isArray(plan.source_names) && plan.source_names.length ? plan.source_names.join("；") : "";
   const supplementalText = String(continuation.prompt || "").trim().slice(0, 600);
@@ -443,8 +445,8 @@ function renderGroundedPlan(plan, continuation = {}) {
 ${zhContinuation}
 
 【醫療回答】
-${plan.direct_zh}${zhDetails}${zhActions}
-${plan.warning_zh ? `\n【需要儘快就醫的情況】\n${plan.warning_zh}` : ""}
+${zhMedicalLead}${plan.direct_zh}${zhDetails}${zhActions}
+${plan.warning_zh ? `\n【需要儘快就醫的情況】\n看到警訊可能會讓人更緊張，這樣的反應可以理解，妳不需要獨自猜測嚴重程度；若出現下列情況，請儘快前往婦產科或急診。${plan.warning_zh}` : ""}
 
 準備看診時，擔心說不完整或被誤解，可能會讓人更緊張；妳不需要為此自責。我們可以一步一步把下面的問題和說明句整理好。
 
@@ -457,8 +459,8 @@ Kedengarannya keluhan kesehatan kewanitaan ini, ditambah ketidakpastian apakah p
 ${idContinuation}
 
 【Jawaban medis】
-${plan.direct_id}${idDetails}${idActions}
-${plan.warning_id ? `\n【Kapan perlu segera periksa】\n${plan.warning_id}` : ""}
+${idMedicalLead}${plan.direct_id}${idDetails}${idActions}
+${plan.warning_id ? `\n【Kapan perlu segera periksa】\nMembaca tanda bahaya bisa membuat kamu makin tegang, dan reaksi itu bisa dipahami. Kamu tidak perlu menebak sendiri seberapa serius kondisinya; kalau ada tanda berikut, segera periksa ke dokter kandungan atau IGD. ${plan.warning_id}` : ""}
 
 Menjelang periksa, kekhawatiran tidak bisa menjelaskan dengan lengkap atau takut disalahpahami bisa membuat kamu makin tegang. Kamu tidak perlu menyalahkan diri sendiri; kita bisa merapikan pertanyaan dan kalimat berikut pelan-pelan.
 
