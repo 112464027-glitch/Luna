@@ -103,9 +103,9 @@ function buildExperimentAnswerContract() {
 
 作答前先在內部形成相同的醫療內容計畫，再套用本組語氣；不要輸出計畫本身：
 1. 問題重點：只回答使用者真正詢問的主題，不可因片段提到 PCOS、POI 或其他疾病就自行改題或暗示診斷。
-2. 需要知道的資訊：最多 2 個不重複、且由本次證據直接支持的醫療重點。
+2. 需要知道的資訊：最多 3 個不重複、且由本次證據直接支持的醫療重點；至少包含直接答案與一項可執行的下一步或就醫準備。
 3. 需要儘快就醫的情況：只列與問題或已描述症狀相關的 1–2 個警訊；不要每題都貼完整通用警訊清單。
-4. 下一步／看診前準備：最多 2 個具體項目，並最多提供 1 個可詢問醫師的問題。
+4. 下一步／看診前準備：最多 3 個具體項目，提供 1–2 個可詢問醫師的問題，並提出一個能承接後續對話的症狀整理問題。
 5. 本次使用來源：只列實際支持上述內容的 2–3 個 chunk_id，不得列來源網址、內部標籤或未使用片段。
 
 嚴格禁止：
@@ -114,7 +114,7 @@ function buildExperimentAnswerContract() {
 - 將「月經」自動等同於 PCOS；資訊不足時最多問一個澄清問題。
 - 中文與印尼文使用不同醫療事實。answer_zh 是內容依據；answer_id 只作為印尼語用詞參考，印尼文必須完整表達與中文相同的事實、警訊、下一步及來源。
 
-一般完整回覆以繁體中文約 250–450 字為原則，印尼文資訊量相等。除非使用者明確追問，不要加入「診斷與排除方向、生育或長期影響、後續追蹤」等額外標題。
+一般完整回覆以繁體中文約 350–650 字為原則，印尼文資訊量相等。詳細是指提供與問題相關的行動、警訊及就醫準備，不是加入無關疾病或重複片段。
 `.trim();
 }
 
@@ -143,32 +143,144 @@ function parseEvidenceContext(dbContext = "") {
       const field = (name) => block.match(new RegExp(`(?:^|\\n)${name}:\\s*([^\\n]+)`, "i"))?.[1]?.trim() || "";
       return {
         chunkId: field("chunk_id"),
+        type: field("type"),
         answerZh: field("answer_zh"),
         answerId: field("answer_id"),
         redFlagsZh: field("red_flags_zh") || field("red_flags"),
         redFlagsId: field("red_flags_id"),
+        sourceName: field("source_name"),
       };
     })
     .filter((item) => item.chunkId && item.answerZh && item.answerId)
     .filter((item, index, items) => items.findIndex((other) => other.answerZh === item.answerZh) === index)
-    .slice(0, 2);
+    .slice(0, 3);
+}
+
+function getOfficialDialogueSupport(chunkId = "") {
+  const code = String(chunkId).toUpperCase();
+  const bundle = /^V2-(?:HPV|HPA)-/.test(code)
+    ? "CERVICAL"
+    : code.match(/^V2-([A-Z]+)-/)?.[1] || "GENERAL";
+  const support = {
+    MEN: {
+      questionZh: "看診時可以問：①依我的週期紀錄與懷孕可能，目前需要先做哪些評估？②如果月經仍沒來，多久應再回診？",
+      questionId: "Saat periksa, kamu bisa bertanya: ① Berdasarkan catatan siklus dan kemungkinan hamil, pemeriksaan apa yang perlu dilakukan dulu? ② Jika haid tetap belum datang, kapan perlu kontrol lagi?",
+      followUpZh: "若要繼續由 Luna 協助整理，請告訴我：最後一次月經何時開始、平常週期約幾天、目前遲了多久、是否可能懷孕，以及有沒有腹痛或出血？",
+      followUpId: "Kalau ingin lanjut merapikan bersama Luna, kapan hari pertama haid terakhir, biasanya siklusmu berapa hari, sekarang terlambat berapa lama, apakah mungkin hamil, dan apakah ada nyeri perut atau perdarahan?",
+    },
+    AUB: {
+      questionZh: "看診時可以問：①依我的出血量與週期，需要驗孕、抽血或超音波嗎？②哪些變化表示我需要更快回診？",
+      questionId: "Saat periksa, kamu bisa bertanya: ① Berdasarkan jumlah darah dan pola siklus saya, apakah perlu tes kehamilan, tes darah, atau USG? ② Perubahan apa yang berarti saya perlu kembali lebih cepat?",
+      followUpZh: "若要繼續整理，請告訴我：出血第幾天、每小時大約更換幾片衛生棉、是否有大血塊，以及有沒有頭暈、胸痛、呼吸困難或懷孕可能？",
+      followUpId: "Kalau ingin lanjut, perdarahan sudah hari ke berapa, kira-kira berapa pembalut yang diganti tiap jam, apakah ada gumpalan besar, pusing, nyeri dada, sesak napas, atau kemungkinan hamil?",
+    },
+    DYSM: {
+      questionZh: "看診時可以問：①這種疼痛是否需要評估次發性經痛？②依我的症狀是否需要超音波或其他檢查？",
+      questionId: "Saat periksa, kamu bisa bertanya: ① Apakah nyeri ini perlu dinilai sebagai nyeri haid sekunder? ② Berdasarkan gejala saya, apakah perlu USG atau pemeriksaan lain?",
+      followUpZh: "若要繼續整理，請告訴我：疼痛從何時開始、0到10分有多痛、是否逐月加重，以及有沒有發燒、大量出血、昏厥或懷孕可能？",
+      followUpId: "Kalau ingin lanjut, sejak kapan nyeri mulai, seberapa berat dari 0 sampai 10, apakah makin berat tiap bulan, dan apakah ada demam, perdarahan banyak, pingsan, atau kemungkinan hamil?",
+    },
+    VAG: {
+      questionZh: "看診時可以問：①這次需要做分泌物採樣或感染檢驗嗎？②檢查前有哪些藥物或清潔用品需要暫停？",
+      questionId: "Saat periksa, kamu bisa bertanya: ① Apakah kali ini perlu pengambilan sampel keputihan atau tes infeksi? ② Obat atau produk pembersih apa yang perlu dihentikan sebelum pemeriksaan?",
+      followUpZh: "若要繼續整理，請告訴我：分泌物何時開始改變、顏色與氣味、是否搔癢或灼熱，以及有沒有下腹痛、發燒、出血或懷孕可能？",
+      followUpId: "Kalau ingin lanjut, sejak kapan keputihan berubah, bagaimana warna dan baunya, apakah gatal atau terasa panas, dan apakah ada nyeri perut bawah, demam, perdarahan, atau kemungkinan hamil?",
+    },
+    PID: {
+      questionZh: "看診時可以問：①我的症狀是否需要感染檢驗或其他檢查？②若開始治療，哪些變化表示不必等滿72小時就要回診？",
+      questionId: "Saat periksa, kamu bisa bertanya: ① Apakah gejala saya memerlukan tes infeksi atau pemeriksaan lain? ② Jika pengobatan sudah dimulai, perubahan apa yang berarti saya tidak perlu menunggu 72 jam untuk kembali?",
+      followUpZh: "若要繼續整理，請告訴我：下腹或骨盆痛有多嚴重、是否發燒或嘔吐、分泌物或出血是否異常，以及是否可能懷孕？",
+      followUpId: "Kalau ingin lanjut, seberapa berat nyeri perut bawah atau panggul, apakah ada demam atau muntah, apakah keputihan atau perdarahan berubah, dan apakah mungkin hamil?",
+    },
+    ENDO: {
+      questionZh: "看診時可以問：①依我的症狀是否需要超音波或其他評估？②治療選擇如何兼顧疼痛、生活影響與生育計畫？",
+      questionId: "Saat periksa, kamu bisa bertanya: ① Berdasarkan gejala saya, apakah perlu USG atau pemeriksaan lain? ② Bagaimana pilihan penanganan dapat mempertimbangkan nyeri, dampak pada aktivitas, dan rencana kehamilan?",
+      followUpZh: "若要繼續整理，請告訴我：疼痛是否與月經有關、持續多久、是否影響工作或睡眠，以及有沒有性交痛、排便排尿痛或受孕困難？",
+      followUpId: "Kalau ingin lanjut, apakah nyeri berkaitan dengan haid, sudah berlangsung berapa lama, apakah mengganggu kerja atau tidur, dan apakah ada nyeri saat berhubungan, buang air, atau sulit hamil?",
+    },
+    CONTRA: {
+      questionZh: "看診時可以問：①依我的健康狀況、可接受的副作用與生育計畫，哪些避孕方式較適合？②我是否也需要保險套來降低感染風險？",
+      questionId: "Saat periksa, kamu bisa bertanya: ① Berdasarkan kondisi kesehatan, efek samping yang bisa saya terima, dan rencana kehamilan, metode apa yang cocok? ② Apakah saya juga perlu kondom untuk mengurangi risiko infeksi?",
+      followUpZh: "若要繼續整理，請告訴我：妳希望避孕多久、未來是否計畫懷孕、最在意便利性或副作用中的哪一點，以及是否需要同時預防性傳染感染？",
+      followUpId: "Kalau ingin lanjut, berapa lama kamu ingin mencegah kehamilan, apakah ada rencana hamil nanti, apa yang paling penting soal kemudahan atau efek samping, dan apakah juga perlu perlindungan dari infeksi menular seksual?",
+    },
+    CERVICAL: {
+      questionZh: "看診時可以問：①依我的年齡與過去篩檢紀錄，目前適合做抹片或HPV檢測嗎？②我是否需要諮詢HPV疫苗？",
+      questionId: "Saat periksa, kamu bisa bertanya: ① Berdasarkan usia dan riwayat skrining saya, apakah sekarang perlu Pap smear atau tes HPV? ② Apakah saya perlu berkonsultasi tentang vaksin HPV?",
+      followUpZh: "若要繼續整理，請告訴我：妳的年齡、以前是否做過子宮頸抹片或HPV檢測、最近一次結果，以及是否接種過HPV疫苗？",
+      followUpId: "Kalau ingin lanjut, berapa usiamu, apakah pernah Pap smear atau tes HPV, bagaimana hasil terakhirnya, dan apakah sudah pernah mendapat vaksin HPV?",
+    },
+    GENERAL: {
+      questionZh: "看診時可以問：「依我的症狀與紀錄，下一步最需要確認什麼？」",
+      questionId: "Saat periksa, kamu bisa bertanya: ‘Berdasarkan gejala dan catatan saya, hal apa yang paling perlu dipastikan selanjutnya?’",
+      followUpZh: "若要繼續整理，請告訴我症狀何時開始、嚴重程度，以及是否伴隨疼痛、出血、分泌物變化、發燒或懷孕可能？",
+      followUpId: "Kalau ingin lanjut, sejak kapan gejala mulai, seberapa berat, dan apakah disertai nyeri, perdarahan, perubahan keputihan, demam, atau kemungkinan hamil?",
+    },
+  };
+  const clinicScripts = {
+    MEN: {
+      clinicScriptZh: "「我的最後一次月經開始日是＿＿，平常週期約＿＿天，目前遲了＿＿天；我（有／沒有／不確定）懷孕可能，另外有＿＿。」",
+      clinicScriptId: "‘Hari pertama haid terakhir saya tanggal ____. Siklus saya biasanya sekitar ____ hari dan sekarang terlambat ____ hari. Kemungkinan hamil: ada/tidak/tidak yakin. Keluhan lain: ____.’",
+    },
+    AUB: {
+      clinicScriptZh: "「我從＿＿開始出血，目前第＿＿天；最嚴重時每小時約更換＿＿片衛生棉，血塊約＿＿大，另有＿＿症狀。」",
+      clinicScriptId: "‘Saya mulai berdarah sejak ____, sekarang hari ke-____. Saat paling banyak, saya mengganti sekitar ____ pembalut per jam, ukuran gumpalan sekitar ____, dan ada keluhan ____.’",
+    },
+    DYSM: {
+      clinicScriptZh: "「疼痛從＿＿開始，程度約＿＿／10分，會／不會影響工作或睡眠；同時有／沒有發燒、大量出血或其他症狀＿＿。」",
+      clinicScriptId: "‘Nyeri mulai sejak ____, tingkatnya sekitar ____ dari 10, dan mengganggu/tidak mengganggu kerja atau tidur. Ada/tidak ada demam, perdarahan banyak, atau keluhan lain: ____.’",
+    },
+    VAG: {
+      clinicScriptZh: "「分泌物從＿＿開始改變，顏色是＿＿、氣味是＿＿，並有／沒有搔癢、灼熱、下腹痛、發燒或出血。」",
+      clinicScriptId: "‘Keputihan berubah sejak ____. Warnanya ____, baunya ____. Ada/tidak ada gatal, rasa panas, nyeri perut bawah, demam, atau perdarahan.’",
+    },
+    PID: {
+      clinicScriptZh: "「下腹或骨盆痛從＿＿開始，程度約＿＿／10分；同時有／沒有發燒、嘔吐、分泌物或出血異常，懷孕可能是＿＿。」",
+      clinicScriptId: "‘Nyeri perut bawah atau panggul mulai sejak ____, tingkatnya ____ dari 10. Ada/tidak ada demam, muntah, perubahan keputihan atau perdarahan. Kemungkinan hamil: ____.’",
+    },
+    ENDO: {
+      clinicScriptZh: "「疼痛已持續＿＿，與月經的關係是＿＿，對工作、睡眠或性行為的影響是＿＿；我目前的生育計畫是＿＿。」",
+      clinicScriptId: "‘Nyeri sudah berlangsung ____. Hubungannya dengan haid adalah ____. Dampaknya pada kerja, tidur, atau hubungan seksual adalah ____. Rencana kehamilan saya: ____.’",
+    },
+    CONTRA: {
+      clinicScriptZh: "「我希望避孕約＿＿，未來（有／沒有／尚未確定）懷孕計畫；我最重視＿＿，最擔心的副作用或使用困難是＿＿。」",
+      clinicScriptId: "‘Saya ingin mencegah kehamilan selama sekitar ____. Rencana hamil nanti: ada/tidak/belum yakin. Hal yang paling penting bagi saya adalah ____, dan efek samping atau kesulitan yang paling saya khawatirkan adalah ____.’",
+    },
+    CERVICAL: {
+      clinicScriptZh: "「我今年＿＿歲，上次子宮頸抹片或HPV檢測是在＿＿，結果是＿＿；HPV疫苗接種情況是＿＿。」",
+      clinicScriptId: "‘Usia saya ____ tahun. Pap smear atau tes HPV terakhir dilakukan pada ____, hasilnya ____. Riwayat vaksin HPV saya: ____.’",
+    },
+    GENERAL: {
+      clinicScriptZh: "「我的症狀從＿＿開始，最困擾的是＿＿，嚴重程度約＿＿／10分，並伴隨＿＿；我想確認是否需要檢查或回診。」",
+      clinicScriptId: "‘Keluhan saya mulai sejak ____. Yang paling mengganggu adalah ____, tingkatnya sekitar ____ dari 10, disertai ____. Saya ingin memastikan apakah perlu pemeriksaan atau kontrol.’",
+    },
+  };
+  return { ...(support[bundle] || support.GENERAL), ...(clinicScripts[bundle] || clinicScripts.GENERAL) };
 }
 
 function buildDeterministicOfficialPlan(dbContext = "") {
   const evidence = parseEvidenceContext(dbContext).filter((item) => item.chunkId.startsWith("V2-"));
   if (!evidence.length) return null;
   const unique = (items) => [...new Set(items.filter(Boolean))];
+  const primary = evidence[0];
+  const supporting = evidence.slice(1);
+  const dialogue = getOfficialDialogueSupport(primary.chunkId);
   return {
     insufficient: false,
-    direct_zh: unique(evidence.map((item) => item.answerZh)).join("\n"),
-    direct_id: unique(evidence.map((item) => item.answerId)).join("\n"),
-    actions_zh: [],
-    actions_id: [],
+    direct_zh: primary.answerZh,
+    direct_id: primary.answerId,
+    actions_zh: unique(supporting.map((item) => item.answerZh)),
+    actions_id: unique(supporting.map((item) => item.answerId)),
     warning_zh: unique(evidence.map((item) => item.redFlagsZh)).join("；"),
     warning_id: unique(evidence.map((item) => item.redFlagsId)).join("; "),
-    question_zh: "看診時可以詢問醫師：「依我的情況，下一步最需要確認什麼？」",
-    question_id: "Saat periksa, kamu bisa bertanya: ‘Berdasarkan kondisi saya, hal apa yang paling perlu dipastikan selanjutnya?’",
+    question_zh: dialogue.questionZh,
+    question_id: dialogue.questionId,
+    follow_up_zh: dialogue.followUpZh,
+    follow_up_id: dialogue.followUpId,
+    clinic_script_zh: dialogue.clinicScriptZh,
+    clinic_script_id: dialogue.clinicScriptId,
     sources: unique(evidence.map((item) => item.chunkId)),
+    source_names: unique(evidence.map((item) => item.sourceName)),
   };
 }
 
@@ -244,30 +356,31 @@ ${dbContext}
 }
 
 function renderGroundedPlan(plan) {
-  const zhActions = plan.actions_zh.length ? `\n【現在可以做】\n${plan.actions_zh.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
-  const idActions = plan.actions_id.length ? `\n【Yang bisa dilakukan sekarang】\n${plan.actions_id.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
+  const zhActions = plan.actions_zh.length ? `\n【進一步處理與就醫準備】\n${plan.actions_zh.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
+  const idActions = plan.actions_id.length ? `\n【Langkah lanjutan dan persiapan periksa】\n${plan.actions_id.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
   const sources = plan.sources.length ? plan.sources.join("、") : "尚未使用特定片段，等待問題釐清";
-  return `婦科或月經狀況出現變化時，可能讓妳感到擔心、不安，或不知道該怎麼開口。這樣的感受可以理解，妳不需要因為不知道怎麼處理而責怪自己；我們可以一步一步整理直接答案、需要注意的情況與看診問題。
+  const sourceNames = Array.isArray(plan.source_names) && plan.source_names.length ? plan.source_names.join("；") : "";
+  return `婦科或月經狀況出現變化時，可能會讓人擔心、尷尬，或不知道該怎麼向醫師開口。這些感受是可以理解的，妳不需要因為一時不知道怎麼處理而責怪自己；Luna會陪妳一步一步整理醫療重點、警訊、看診說明與提問，同時保持清楚的醫療界線。
 
 【直接回答】
 ${plan.direct_zh}${zhActions}
 ${plan.warning_zh ? `\n【需要儘快就醫的情況】\n${plan.warning_zh}` : ""}
 
-【下一個重要問題】
+【看診時可以問】
 ${plan.question_zh}
 
-本次使用來源：${sources}
+${plan.clinic_script_zh ? `【可直接帶去看診的說明句】\n${plan.clinic_script_zh}\n\n` : ""}${plan.follow_up_zh ? `【若要繼續由 Luna 協助整理】\n${plan.follow_up_zh}\n\n` : ""}${sourceNames ? `資料依據：${sourceNames}\n` : ""}本次使用來源：${sources}
 ---
-Kalau kondisi haid atau kesehatan kewanitaan berubah, kamu mungkin merasa khawatir, tidak tenang, atau bingung harus mulai bicara dari mana. Perasaan seperti itu dapat dipahami. Kamu tidak perlu menyalahkan diri sendiri karena belum tahu harus bagaimana; kita bisa merapikan jawaban langsung, tanda yang perlu diperhatikan, dan pertanyaan untuk dokter pelan-pelan.
+Kalau kondisi haid atau kesehatan kewanitaan berubah, kamu mungkin merasa khawatir, malu, atau bingung harus mulai bicara dari mana. Perasaan seperti itu bisa dimengerti, dan kamu tidak perlu menyalahkan diri karena belum tahu harus bagaimana. Luna akan menemanimu merapikan poin medis, tanda bahaya, kalimat untuk dokter, dan pertanyaan periksa pelan-pelan, sambil tetap menjaga batas informasi medis.
 
 【Jawaban langsung】
 ${plan.direct_id}${idActions}
 ${plan.warning_id ? `\n【Kapan perlu segera periksa】\n${plan.warning_id}` : ""}
 
-【Pertanyaan penting berikutnya】
+【Pertanyaan yang bisa dibawa saat periksa】
 ${plan.question_id}
 
-Sumber yang dipakai: ${sources}`;
+${plan.clinic_script_id ? `【Kalimat yang bisa dibawa saat periksa】\n${plan.clinic_script_id}\n\n` : ""}${plan.follow_up_id ? `【Kalau ingin lanjut merapikan bersama Luna】\n${plan.follow_up_id}\n\n` : ""}${sourceNames ? `Dasar sumber: ${sourceNames}\n` : ""}Sumber yang dipakai: ${sources}`;
 }
 
 function buildControlledRagReply(dbContext = "", retrievedSources = "", answerGoal = "information") {

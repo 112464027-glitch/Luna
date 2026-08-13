@@ -474,7 +474,7 @@ function detectAnswerGoal(promptText) {
   if (/怎麼辦|如何處理|如何改善|如何緩解|該做什麼|自己買藥|可以買藥|apa yang harus|bagaimana mengatasi|cara mengurangi|boleh.*obat|apa boleh/.test(text)) return 'action';
   if (/診斷|標準|criteria|kriteria|是不是|是否為/.test(text)) return 'diagnosis';
   if (/症狀|表現|tanda|gejala/.test(text)) return 'symptoms';
-  if (/看診|問醫師|就醫準備|tanya dokter|persiapan/.test(text)) return 'consultation';
+  if (/看診|看醫生|要不要就醫|需要就醫|該不該就醫|問醫師|就醫準備|tanya dokter|perlu periksa|persiapan/.test(text)) return 'consultation';
   return 'information';
 }
 
@@ -547,6 +547,43 @@ function getEvidenceSignature(entry) {
 function isMedicalEvidenceEntry(entry) {
   const type = getEntryField(entry, 'type');
   return !/Luna 回答邊界|印尼語自然說法/.test(type);
+}
+
+function getOfficialEvidenceBundle(entry) {
+  const chunkId = (getEntryField(entry, 'chunk_id') || '').toUpperCase();
+  if (!chunkId.startsWith('V2-')) return '';
+  if (/^V2-(?:HPV|HPA)-/.test(chunkId)) return 'CERVICAL';
+  return chunkId.match(/^V2-([A-Z]+)-/)?.[1] || '';
+}
+
+function selectOfficialBundleEntries(ranked, topK) {
+  const topEntry = ranked[0];
+  const bundle = getOfficialEvidenceBundle(topEntry);
+  if (!topEntry || !bundle || topEntry._score < 60) return [];
+
+  const topChunkId = getEntryField(topEntry, 'chunk_id');
+  const typePriority = {
+    '紅旗警訊': 0,
+    '處理與就醫準備': 1,
+    '就醫準備': 2,
+    '臨床評估': 3,
+    '預防與自我照護': 4,
+    '核心回答': 5
+  };
+  const siblings = ranked
+    .filter(entry => {
+      const chunkId = getEntryField(entry, 'chunk_id');
+      if (chunkId === topChunkId || getOfficialEvidenceBundle(entry) !== bundle) return false;
+      if (!/-ROUTE-/.test(topChunkId) && /-ROUTE-/.test(chunkId)) return false;
+      return isMedicalEvidenceEntry(entry);
+    })
+    .sort((a, b) => {
+      const aPriority = typePriority[getEntryField(a, 'type')] ?? 9;
+      const bPriority = typePriority[getEntryField(b, 'type')] ?? 9;
+      return aPriority - bPriority || b._score - a._score;
+    });
+
+  return [topEntry, ...siblings].slice(0, topK);
 }
 
 function selectDiverseEntries(entries, topK, topic) {
@@ -647,6 +684,8 @@ function retrieveRelevantDbEntries(prompt, topK = 5) {
   const ranked = candidates
     .map(e => ({ ...e, _score: scoreEntry(prompt, promptTokens, e) }))
     .sort((a, b) => b._score - a._score);
+  const officialBundle = selectOfficialBundleEntries(ranked, topK);
+  if (officialBundle.length) return officialBundle;
   const topScore = ranked[0]?._score || 0;
   const confidenceFiltered = topScore >= 60
     ? ranked.filter(e => e._score >= topScore - 25 && e._score > 0)
@@ -654,12 +693,24 @@ function retrieveRelevantDbEntries(prompt, topK = 5) {
   return selectDiverseEntries(confidenceFiltered, topK, topic);
 }
 
-function buildRetrievedDbContext(prompt) {
+function buildContextualRetrievalPrompt(prompt, history = []) {
+  const currentTopic = detectPromptTopic(prompt);
+  const isFollowUp = currentTopic === 'general' && (/^(那|所以|這樣|如果|還是|可是|需要|可以|多久|為什麼|怎麼|要不要|apakah|kalau|jadi|berapa|mengapa)/i.test(prompt.trim()) || prompt.trim().length <= 24);
+  if (!isFollowUp) return prompt;
+  const previousUser = history
+    .slice(0, -1)
+    .reverse()
+    .find(message => message.role === 'user' && message.text && message.text.trim() !== prompt.trim());
+  return previousUser ? `${previousUser.text}\n後續追問：${prompt}` : prompt;
+}
+
+function buildRetrievedDbContext(prompt, history = []) {
+  const retrievalPrompt = buildContextualRetrievalPrompt(prompt, history);
   const topKByCondition = { none: 0, '20': 2, '60': 3, '100': 3, '300': 3, '420': 3 };
-  const hits = retrieveRelevantDbEntries(prompt, topKByCondition[ragCondition] || 5);
+  const hits = retrieveRelevantDbEntries(retrievalPrompt, topKByCondition[ragCondition] || 5);
   const context = hits.map(formatEvidenceEntry).join('\n\n');
   const sources = hits.map(e => getEntryField(e, 'chunk_id') || e.name).join(' ; ');
-  return { context, hits, sources, condition: ragCondition, conditionLabel: getConditionLabel(), intent: detectPromptTopic(prompt), answerGoal: detectAnswerGoal(prompt), needsClarification: needsPromptClarification(prompt) };
+  return { context, hits, sources, condition: ragCondition, conditionLabel: getConditionLabel(), intent: detectPromptTopic(retrievalPrompt), answerGoal: detectAnswerGoal(prompt), needsClarification: needsPromptClarification(prompt) };
 }
 
 // ══════════════════════════════════════════════
@@ -709,7 +760,7 @@ async function sendMessage() {
   addMessage('user', prompt);
   chatHistory.push({role:'user', text:prompt});
   showTyping();
-  const rag = buildRetrievedDbContext(prompt);
+  const rag = buildRetrievedDbContext(prompt, chatHistory);
   const dbContext = rag.context;
   const hasDb = rag.hits.length > 0;
   try {
