@@ -154,6 +154,24 @@ function parseEvidenceContext(dbContext = "") {
     .slice(0, 2);
 }
 
+function buildDeterministicOfficialPlan(dbContext = "") {
+  const evidence = parseEvidenceContext(dbContext).filter((item) => item.chunkId.startsWith("V2-"));
+  if (!evidence.length) return null;
+  const unique = (items) => [...new Set(items.filter(Boolean))];
+  return {
+    insufficient: false,
+    direct_zh: unique(evidence.map((item) => item.answerZh)).join("\n"),
+    direct_id: unique(evidence.map((item) => item.answerId)).join("\n"),
+    actions_zh: [],
+    actions_id: [],
+    warning_zh: unique(evidence.map((item) => item.redFlagsZh)).join("；"),
+    warning_id: unique(evidence.map((item) => item.redFlagsId)).join("; "),
+    question_zh: "看診時可以詢問醫師：「依我的情況，下一步最需要確認什麼？」",
+    question_id: "Saat periksa, kamu bisa bertanya: ‘Berdasarkan kondisi saya, hal apa yang paling perlu dipastikan selanjutnya?’",
+    sources: unique(evidence.map((item) => item.chunkId)),
+  };
+}
+
 async function buildGroundedContentPlan(prompt, dbContext, queryIntent, answerGoal) {
   const evidence = parseEvidenceContext(dbContext);
   const allowedSources = evidence.map((item) => item.chunkId);
@@ -226,16 +244,13 @@ ${dbContext}
 }
 
 function renderGroundedPlan(plan) {
-  const zhActions = plan.actions_zh.length ? plan.actions_zh.map((item, index) => `${index + 1}. ${item}`).join("\n") : "目前證據不足，我們先從下方問題一步一步釐清。";
-  const idActions = plan.actions_id.length ? plan.actions_id.map((item, index) => `${index + 1}. ${item}`).join("\n") : "Buktinya belum cukup; kita perjelas dulu lewat pertanyaan di bawah ini.";
+  const zhActions = plan.actions_zh.length ? `\n【現在可以做】\n${plan.actions_zh.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
+  const idActions = plan.actions_id.length ? `\n【Yang bisa dilakukan sekarang】\n${plan.actions_id.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "";
   const sources = plan.sources.length ? plan.sources.join("、") : "尚未使用特定片段，等待問題釐清";
-  return `不知道婦科或月經問題該怎麼處理時，可能會讓人擔心；這樣的感受可以理解。我們先一步一步整理直接答案、現在能做的事與需要注意的情況。
+  return `婦科或月經狀況出現變化時，可能讓妳感到擔心、不安，或不知道該怎麼開口。這樣的感受可以理解，妳不需要因為不知道怎麼處理而責怪自己；我們可以一步一步整理直接答案、需要注意的情況與看診問題。
 
 【直接回答】
-${plan.direct_zh}
-
-【現在可以做】
-${zhActions}
+${plan.direct_zh}${zhActions}
 ${plan.warning_zh ? `\n【需要儘快就醫的情況】\n${plan.warning_zh}` : ""}
 
 【下一個重要問題】
@@ -243,13 +258,10 @@ ${plan.question_zh}
 
 本次使用來源：${sources}
 ---
-Kalau belum tahu harus bagaimana menghadapi masalah haid atau kesehatan kewanitaan, kamu mungkin merasa khawatir, dan perasaan itu dapat dipahami. Kita rapikan pelan-pelan: jawaban langsung, hal yang bisa dilakukan sekarang, dan kondisi yang perlu diperhatikan.
+Kalau kondisi haid atau kesehatan kewanitaan berubah, kamu mungkin merasa khawatir, tidak tenang, atau bingung harus mulai bicara dari mana. Perasaan seperti itu dapat dipahami. Kamu tidak perlu menyalahkan diri sendiri karena belum tahu harus bagaimana; kita bisa merapikan jawaban langsung, tanda yang perlu diperhatikan, dan pertanyaan untuk dokter pelan-pelan.
 
 【Jawaban langsung】
-${plan.direct_id}
-
-【Yang bisa dilakukan sekarang】
-${idActions}
+${plan.direct_id}${idActions}
 ${plan.warning_id ? `\n【Kapan perlu segera periksa】\n${plan.warning_id}` : ""}
 
 【Pertanyaan penting berikutnya】
@@ -586,6 +598,10 @@ module.exports = async (req, res) => {
   }
   if (normalizeRagLevel(ragCondition) !== "none") {
     try {
+      const officialPlan = buildDeterministicOfficialPlan(dbContext);
+      if (officialPlan) {
+        return res.status(200).json({ reply: ensureSafetyBoundary(renderGroundedPlan(officialPlan)), controlledRag: true, deterministicOfficial: true, insufficient: false });
+      }
       const plan = await buildGroundedContentPlan(prompt.trim(), dbContext, queryIntent, answerGoal);
       return res.status(200).json({ reply: ensureSafetyBoundary(renderGroundedPlan(plan)), controlledRag: true, insufficient: Boolean(plan.insufficient) });
     } catch (err) {
